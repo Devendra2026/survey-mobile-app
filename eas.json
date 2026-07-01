@@ -1,0 +1,50 @@
+{
+  "cli": {
+    "version": ">= 18.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_USE_DEV_CLIENT": "1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "developmentClient": false,
+      "environment": "production",
+      "env": {
+        "EXCLUDE_DEV_CLIENT": "1"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "environment": "preview",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "developmentClient": false,
+      "environment": "preview",
+      "distribution": "internal",
+      "env": {
+        "EXCLUDE_DEV_CLIENT": "1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
