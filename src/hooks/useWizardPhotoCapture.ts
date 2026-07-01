@@ -23,6 +23,7 @@ import {
   hasPendingPhotoUploads,
   previewUrisFromQueue,
   readPhotoUploadQueue,
+  reconcilePhotoQueueFromDraft,
   updatePhotoUploadQueueEntry,
   type QueuedPhotoUpload,
 } from '@/utils/photoUploadQueue';
@@ -46,6 +47,32 @@ const LINK_RETRY_BASE_MS = 500;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export type FlushPhotoQueueResult = {
+  stillPending: boolean;
+  error?: string;
+};
+
+function photoDraftEntryFromQueue(
+  item: QueuedPhotoUpload,
+  storageId: Id<'_storage'>,
+  existing: (WizardPhotoEntry & { slot: SurveyPhotoSlot }) | undefined,
+  uploadStatus: 'uploaded' | 'linked',
+): WizardPhotoEntry & { slot: SurveyPhotoSlot } {
+  if (existing) {
+    return { ...existing, slot: item.slot, storageId, uploadStatus };
+  }
+  return {
+    slot: item.slot,
+    localUri: item.localFilePath,
+    storageId,
+    sizeKb: item.sizeKb,
+    width: item.width,
+    height: item.height,
+    capturedAt: item.capturedAt,
+    uploadStatus,
+  };
 }
 
 export function useWizardPhotoCapture({
@@ -87,6 +114,8 @@ export function useWizardPhotoCapture({
   const surveyPhotos = filterSurveyPhotos(draft.photos);
   const surveyPhotosRef = useRef(surveyPhotos);
   surveyPhotosRef.current = surveyPhotos;
+  const draftPhotosRef = useRef(draft.photos);
+  draftPhotosRef.current = draft.photos;
 
   const photoBySlot = useMemo(() => new Map(surveyPhotos.map((p) => [p.slot, p])), [surveyPhotos]);
 
@@ -169,18 +198,15 @@ export function useWizardPhotoCapture({
           stage: 'needs_link',
           storageId,
         });
-        const existing = photoEntryForSlot(item.slot);
-        if (existing) {
-          await patchPhotoInDraft(item.slot, {
-            ...existing,
-            slot: item.slot,
-            storageId,
-            uploadStatus: 'uploaded',
-          });
-        }
+        await patchPhotoInDraft(
+          item.slot,
+          photoDraftEntryFromQueue(item, storageId, photoEntryForSlot(item.slot), 'uploaded'),
+        );
       }
 
-      if (!storageId) return;
+      if (!storageId) {
+        throw new Error(`Photo upload incomplete for ${item.slot} (stage: ${item.stage})`);
+      }
 
       await linkPhotoWithRetry({
         surveyId,
@@ -193,15 +219,10 @@ export function useWizardPhotoCapture({
       });
 
       await dequeuePhotoUpload(item.localId, item.slot);
-      const existing = photoEntryForSlot(item.slot);
-      if (existing) {
-        await patchPhotoInDraft(item.slot, {
-          ...existing,
-          slot: item.slot,
-          storageId,
-          uploadStatus: 'linked',
-        });
-      }
+      await patchPhotoInDraft(
+        item.slot,
+        photoDraftEntryFromQueue(item, storageId, photoEntryForSlot(item.slot), 'linked'),
+      );
     },
     [linkPhotoWithRetry, patchPhotoInDraft, photoEntryForSlot, uploadLocalPhoto],
   );
@@ -213,11 +234,12 @@ export function useWizardPhotoCapture({
   }, []);
 
   const flushPhotoQueue = useCallback(
-    async (surveyId?: Id<'surveys'>, options?: { waitForInFlight?: boolean }): Promise<{ stillPending: boolean }> => {
+    async (surveyId?: Id<'surveys'>, options?: { waitForInFlight?: boolean }): Promise<FlushPhotoQueueResult> => {
       const sid = surveyId ?? serverSurveyIdRef.current;
       if (!sid || !isOnline) {
         return {
           stillPending: photosStillPendingCloudSync() || (await hasPendingPhotoUploads(localId)),
+          error: !isOnline ? 'Go online to upload photos' : undefined,
         };
       }
 
@@ -230,18 +252,26 @@ export function useWizardPhotoCapture({
         if (flushInFlight.current) {
           return {
             stillPending: photosStillPendingCloudSync() || (await hasPendingPhotoUploads(localId)),
+            error: 'Photo upload is still in progress — try again in a moment',
           };
         }
       }
 
       flushInFlight.current = true;
       try {
+        await reconcilePhotoQueueFromDraft(localId, draftPhotosRef.current, { hasSurveyId: true });
+
         const queue = await readPhotoUploadQueue();
         const pending = queue.filter((e) => e.localId === localId);
 
         if (pending.length > 0) {
           await Promise.all(pending.map((item) => processQueueItem(item, sid)));
         }
+      } catch (e) {
+        return {
+          stillPending: true,
+          error: toPhotoErrorMessage(e),
+        };
       } finally {
         flushInFlight.current = false;
         const waiters = flushWaiters.current.splice(0);
@@ -249,8 +279,12 @@ export function useWizardPhotoCapture({
         await refreshPendingLinkCount();
       }
 
+      const stillPending = photosStillPendingCloudSync() || (await hasPendingPhotoUploads(localId));
       return {
-        stillPending: photosStillPendingCloudSync() || (await hasPendingPhotoUploads(localId)),
+        stillPending,
+        error: stillPending
+          ? 'Photos could not be synced to the cloud — try again or retake from the photos step'
+          : undefined,
       };
     },
     [isOnline, localId, photosStillPendingCloudSync, processQueueItem, refreshPendingLinkCount],

@@ -4,7 +4,7 @@
 const DEFAULT_ATTEMPTS = 3;
 const BASE_DELAY_MS = 500;
 
-function isTransientError(err: unknown): boolean {
+export function isTransientNetworkError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return (
     /fetch failed|network request failed|network error|timeout|timed out|ECONNRESET|ETIMEDOUT/i.test(msg) ||
@@ -27,7 +27,7 @@ export async function withMutationRetry<T>(fn: () => Promise<T>, opts?: { attemp
       return await fn();
     } catch (err) {
       lastError = err;
-      if (!isTransientError(err) || attempt >= attempts) {
+      if (!isTransientNetworkError(err) || attempt >= attempts) {
         throw err;
       }
       await delay(BASE_DELAY_MS * 2 ** (attempt - 1));

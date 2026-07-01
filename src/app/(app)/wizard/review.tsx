@@ -5,7 +5,8 @@
  * then runs the submit pipeline:
  *
  *   1. `survey.saveDraft` + floor/photo sync → returns surveyId
- *   2. `survey.submit({ id: surveyId })` → flips status to 'submitted',
+ *   2. flush local photos to Convex storage + link
+ *   3. `survey.submit({ id: surveyId })` → flips status to 'submitted',
  *      enforces business rules server-side
  *   4. clear the AsyncStorage draft
  *   5. navigate to the survey detail screen
@@ -45,6 +46,7 @@ import {
   useWizardDraft,
 } from '@/hooks/useWizardDraft';
 import type { useWizardPhotoCapture } from '@/hooks/useWizardPhotoCapture';
+import { isTransientNetworkError } from '@/utils/convexMutationRetry';
 import { convexValidationMessages, toUserMessage } from '@/utils/errors';
 import { hasPendingPhotoUploads } from '@/utils/photoUploadQueue';
 import { wizardScrollContentStyle, wizardScrollViewProps } from '@/utils/scroll-props';
@@ -147,29 +149,20 @@ export default function ReviewScreen() {
 
     setBusy(true);
     try {
-      if (isOnline && draft.serverSurveyId && flushPhotosRef.current) {
-        const { stillPending } = await flushPhotosRef.current(draft.serverSurveyId, { waitForInFlight: true });
-        if (stillPending) {
-          setToast({
-            title: 'Photo upload failed — check your connection and try again',
-            tone: 'danger',
-          });
-          return;
-        }
-      } else if (hasPhotosPendingCloudSync(draft.photos) || (await hasPendingPhotoUploads(draft.localId))) {
-        setToast({
-          title: 'Photos are still syncing to the cloud — go online and try again',
-          tone: 'danger',
-        });
-        return;
-      }
-
       if (draft.gps) {
         const gpsErrors = validateGpsCapture(draft.gps, { strict: true });
         if (gpsErrors.length > 0) {
           setToast({ title: gpsErrors[0]!, tone: 'danger' });
           return;
         }
+      }
+
+      if (!isOnline && (hasPhotosPendingCloudSync(draft.photos) || (await hasPendingPhotoUploads(draft.localId)))) {
+        setToast({
+          title: 'Photos are still syncing to the cloud — go online and try again',
+          tone: 'danger',
+        });
+        return;
       }
 
       const result = await saveToServer(draft);
@@ -185,8 +178,31 @@ export default function ReviewScreen() {
         });
         return;
       }
+
       const surveyId = result.surveyId;
-      await Promise.all([persistServerSurveyId(surveyId), submit({ id: surveyId })]);
+      await persistServerSurveyId(surveyId);
+
+      if (isOnline && flushPhotosRef.current) {
+        const flushResult = await flushPhotosRef.current(surveyId, { waitForInFlight: true });
+        if (flushResult.stillPending) {
+          const detail = flushResult.error ?? 'Photos could not be synced to the cloud';
+          setToast({
+            title: isTransientNetworkError(detail)
+              ? 'Photo upload failed — check your connection and try again'
+              : detail,
+            tone: 'danger',
+          });
+          return;
+        }
+      } else if (hasPhotosPendingCloudSync(draft.photos) || (await hasPendingPhotoUploads(draft.localId))) {
+        setToast({
+          title: 'Photos are still syncing to the cloud — go online and try again',
+          tone: 'danger',
+        });
+        return;
+      }
+
+      await submit({ id: surveyId });
       await clearDraft(draft.localId);
       setToast({ title: 'Submitted for review', tone: 'success' });
       navTimerRef.current = setTimeout(() => {

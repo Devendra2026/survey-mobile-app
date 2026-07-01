@@ -50,7 +50,9 @@ export function uploadJpegBytesToConvexUrl(
 
     xhr.onerror = () => reject(new Error('Photo upload failed — check your connection'));
     xhr.onabort = () => reject(new Error('Photo upload was cancelled'));
-    xhr.send(jpegBytes);
+    // ArrayBuffer slice — raw Uint8Array in xhr.send() fails on some Android RN builds.
+    const body = jpegBytes.buffer.slice(jpegBytes.byteOffset, jpegBytes.byteOffset + jpegBytes.byteLength);
+    xhr.send(body);
   });
 }
 

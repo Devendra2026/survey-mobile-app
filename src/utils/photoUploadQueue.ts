@@ -2,7 +2,8 @@
  * Offline / background photo cloud pipeline queue.
  * Stages: needs_survey → needs_upload → needs_link (legacy entries may start at needs_link).
  */
-import type { SurveyPhotoSlot } from '@/utils/surveyPhotos';
+import type { WizardDraft } from '@/hooks/useWizardDraft';
+import { filterSurveyPhotos, type SurveyPhotoSlot } from '@/utils/surveyPhotos';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const QUEUE_KEY = 'photo_upload_queue_v1';
@@ -115,4 +116,60 @@ export async function updatePhotoUploadQueueEntry(
   if (idx < 0) return;
   queue[idx] = { ...queue[idx]!, ...patch };
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+}
+
+type PhotoDraftForReconcile = {
+  slot: SurveyPhotoSlot;
+  localUri?: string;
+  storageId?: string;
+  sizeKb: number;
+  width?: number;
+  height?: number;
+  capturedAt: number;
+};
+
+/** Pure reconcile: draft photos with localUri but no storageId and no queue row. */
+export function reconcilePhotoQueueEntries(
+  localId: string,
+  photos: PhotoDraftForReconcile[],
+  existingQueue: QueuedPhotoUpload[],
+  opts?: { hasSurveyId?: boolean },
+): QueuedPhotoUpload[] {
+  const queuedSlots = new Set(existingQueue.filter((e) => e.localId === localId).map((e) => e.slot));
+  const out: QueuedPhotoUpload[] = [];
+
+  for (const photo of photos) {
+    if (!photo.localUri || photo.storageId) continue;
+    if (queuedSlots.has(photo.slot)) continue;
+
+    out.push({
+      localId,
+      slot: photo.slot,
+      stage: opts?.hasSurveyId ? 'needs_upload' : 'needs_survey',
+      localFilePath: photo.localUri,
+      sizeKb: photo.sizeKb,
+      width: photo.width ?? 0,
+      height: photo.height ?? 0,
+      capturedAt: photo.capturedAt,
+      previewUri: photo.localUri,
+    });
+  }
+
+  return out;
+}
+
+/** Re-enqueue orphaned local photos before flush (e.g. after app restart). */
+export async function reconcilePhotoQueueFromDraft(
+  localId: string,
+  photos: WizardDraft['photos'],
+  opts?: { hasSurveyId?: boolean },
+): Promise<number> {
+  const queue = await readPhotoUploadQueue();
+  const toAdd = reconcilePhotoQueueEntries(localId, filterSurveyPhotos(photos), queue, opts);
+
+  for (const entry of toAdd) {
+    await enqueuePhotoUpload(entry);
+  }
+
+  return toAdd.length;
 }
