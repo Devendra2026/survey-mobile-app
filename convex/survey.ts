@@ -1254,7 +1254,10 @@ export const submit = mutation({
       ...addressTenantContext(muni, district),
       configuredPostalCode: muni.postalCode,
     };
-    validateBusinessRules(survey as unknown as Record<string, unknown>, addressCtx, 'submit');
+    const allowedTaxZones = await loadAllowedTaxZoneSet(ctx);
+    validateBusinessRules(survey as unknown as Record<string, unknown>, addressCtx, 'submit', {
+      allowedTaxZones,
+    });
 
     await ctx.db.patch(args.id, {
       status: 'submitted',
