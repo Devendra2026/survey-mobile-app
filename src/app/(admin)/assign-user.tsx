@@ -60,11 +60,24 @@ export default function AssignUserScreen() {
   const hideToast = useCallback(() => setToast(null), []);
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return () => {
+  const scheduleNavBack = useCallback(
+    (delayMs: number) => {
       if (navTimerRef.current !== null) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        navTimerRef.current = null;
+        router.back();
+      }, delayMs);
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    const timerRef = navTimerRef;
+    return () => {
+      const pendingId = timerRef.current;
+      if (pendingId !== null) clearTimeout(pendingId);
     };
-  }, []);
+  }, [navTimerRef]);
 
   const districtOptions = useMemo(
     () => tree?.map((d) => ({ value: d._id, label: `${d.name} (${d.stateName})` })) ?? [],
@@ -128,7 +141,7 @@ export default function AssignUserScreen() {
     try {
       await setAllotments({ userId: user._id, allotments: payload });
       setToast({ title: 'Allotments saved', tone: 'success' });
-      navTimerRef.current = setTimeout(() => router.back(), 600);
+      scheduleNavBack(600);
     } catch (e) {
       setToast({ title: toUserMessage(e), tone: 'danger' });
     } finally {

@@ -206,7 +206,7 @@ export function useWizardPhotoCapture({
     [linkPhotoWithRetry, patchPhotoInDraft, photoEntryForSlot, uploadLocalPhoto],
   );
 
-  const flushWaiters = useRef<Array<() => void>>([]);
+  const flushWaiters = useRef<(() => void)[]>([]);
 
   const photosStillPendingCloudSync = useCallback(() => {
     return filterSurveyPhotos(surveyPhotosRef.current).some((p) => photoSlotCaptured(p) && !p.storageId);
@@ -239,11 +239,8 @@ export function useWizardPhotoCapture({
         const queue = await readPhotoUploadQueue();
         const pending = queue.filter((e) => e.localId === localId);
 
-        const batchSize = 2;
-        for (let i = 0; i < pending.length; i += batchSize) {
-          if (!mountedRef.current) break;
-          const batch = pending.slice(i, i + batchSize);
-          await Promise.allSettled(batch.map((item) => processQueueItem(item, sid)));
+        if (pending.length > 0) {
+          await Promise.all(pending.map((item) => processQueueItem(item, sid)));
         }
       } finally {
         flushInFlight.current = false;

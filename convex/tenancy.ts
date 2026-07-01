@@ -176,14 +176,15 @@ export async function resolveTenantScope(
     .withIndex('by_active', (q) => q.eq('isActive', true))
     .collect();
 
-  const municipalitiesAll: Doc<'municipalities'>[] = [];
-  for (const district of districtsAll) {
-    const munis = await ctx.db
-      .query('municipalities')
-      .withIndex('by_district_active', (q) => q.eq('districtId', district._id).eq('isActive', true))
-      .collect();
-    municipalitiesAll.push(...munis);
-  }
+  const municipalitiesByDistrict = await Promise.all(
+    districtsAll.map((district) =>
+      ctx.db
+        .query('municipalities')
+        .withIndex('by_district_active', (q) => q.eq('districtId', district._id).eq('isActive', true))
+        .collect(),
+    ),
+  );
+  const municipalitiesAll = municipalitiesByDistrict.flat();
 
   if (me.role === 'admin') {
     return { districts: districtsAll, municipalities: municipalitiesAll };

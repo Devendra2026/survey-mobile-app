@@ -848,14 +848,16 @@ export const saveDraft = mutation({
         clientUpdatedAt: args.clientUpdatedAt,
         completionPct,
       });
-      const updated = await ctx.db.get(existing._id);
-      if (updated) await syncSurveyAggregates(ctx, existing, updated);
-      await writeAudit(ctx, {
+      const updatedPromise = ctx.db.get(existing._id);
+      const auditPromise = writeAudit(ctx, {
         actorId: me._id,
         action: auditActionForSave(existing, ownScope, false),
         entity: 'survey',
         entityId: existing._id,
       });
+      const updated = await updatedPromise;
+      if (updated) await syncSurveyAggregates(ctx, existing, updated);
+      await auditPromise;
       return existing._id;
     }
 
@@ -871,14 +873,26 @@ export const saveDraft = mutation({
       completionPct,
     });
     const created = await ctx.db.get(newId);
-    if (created) await syncSurveyAggregates(ctx, null, created);
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: auditActionForSave(null, ownScope, true),
-      entity: 'survey',
-      entityId: newId,
-      metadata: { localId: args.localId, draft: true },
-    });
+    if (created) {
+      await Promise.all([
+        syncSurveyAggregates(ctx, null, created),
+        writeAudit(ctx, {
+          actorId: me._id,
+          action: auditActionForSave(null, ownScope, true),
+          entity: 'survey',
+          entityId: newId,
+          metadata: { localId: args.localId, draft: true },
+        }),
+      ]);
+    } else {
+      await writeAudit(ctx, {
+        actorId: me._id,
+        action: auditActionForSave(null, ownScope, true),
+        entity: 'survey',
+        entityId: newId,
+        metadata: { localId: args.localId, draft: true },
+      });
+    }
     return newId;
   },
 });
@@ -1286,14 +1300,15 @@ export const remove = mutation({
       await ctx.db.delete(r._id);
     }
     await syncSurveyAggregates(ctx, survey, null);
-    await ctx.db.delete(args.id);
-
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: 'survey.deleted',
-      entity: 'survey',
-      entityId: args.id,
-    });
+    await Promise.all([
+      ctx.db.delete(args.id),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: 'survey.deleted',
+        entity: 'survey',
+        entityId: args.id,
+      }),
+    ]);
   },
 });
 

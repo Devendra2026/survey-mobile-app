@@ -90,11 +90,24 @@ export default function ApproveDetailScreen() {
   const hideToast = useCallback(() => dispatch({ type: 'clearToast' }), []);
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return () => {
+  const scheduleNavBack = useCallback(
+    (delayMs: number) => {
       if (navTimerRef.current !== null) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        navTimerRef.current = null;
+        router.back();
+      }, delayMs);
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    const timerRef = navTimerRef;
+    return () => {
+      const pendingId = timerRef.current;
+      if (pendingId !== null) clearTimeout(pendingId);
     };
-  }, []);
+  }, [navTimerRef]);
 
   const districtOptions = useMemo(
     () => tree?.map((d) => ({ value: d._id, label: `${d.name} (${d.stateName})` })) ?? [],
@@ -160,7 +173,7 @@ export default function ApproveDetailScreen() {
           try {
             await rejectUser({ userId });
             dispatch({ type: 'setToast', toast: { title: 'Request rejected', tone: 'success' } });
-            navTimerRef.current = setTimeout(() => router.back(), 600);
+            scheduleNavBack(600);
           } catch (e) {
             dispatch({ type: 'setToast', toast: { title: toUserMessage(e), tone: 'danger' } });
           } finally {
@@ -182,7 +195,7 @@ export default function ApproveDetailScreen() {
         wardAssignments: [],
       });
       dispatch({ type: 'setToast', toast: { title: `${user.name} approved`, tone: 'success' } });
-      navTimerRef.current = setTimeout(() => router.back(), 700);
+      scheduleNavBack(700);
     } catch (e) {
       dispatch({ type: 'setToast', toast: { title: toUserMessage(e), tone: 'danger' } });
     } finally {
