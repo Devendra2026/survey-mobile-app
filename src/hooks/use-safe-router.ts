@@ -9,7 +9,7 @@ const NAV_READY_FALLBACK_MS = 2_500;
  */
 export function useSafeRouter() {
   const router = useRouter();
-  const segments = useSegments();
+  const segments = useSegments() as readonly string[];
   const navigationState = useRootNavigationState();
   const [navFallbackReady, setNavFallbackReady] = useState(false);
 
