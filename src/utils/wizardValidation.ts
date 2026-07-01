@@ -200,6 +200,12 @@ export function stepValidationDetails(d: WizardDraft): StepValidationDetail[] {
   });
 }
 
+/** Missing fields for a single step — avoids scanning all steps on every keystroke. */
+export function stepMissingFields(d: WizardDraft, key: StepConfig['key']): string[] {
+  if (stepCompletion(d)[key]) return [];
+  return MISSING_BY_STEP[key](d);
+}
+
 export function allMissingFields(d: WizardDraft): string[] {
   return stepValidationDetails(d).flatMap((s) => s.missingFields);
 }

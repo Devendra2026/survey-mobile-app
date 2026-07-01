@@ -2,15 +2,23 @@
  * Debounced background draft sync to Convex when online.
  */
 import { useNetworkStatus } from '@/hooks/use-network-status';
-import { formatSaveDraftError, useSaveSurveyDraft } from '@/hooks/useSaveSurveyDraft';
+import { formatSaveDraftError, useSaveSurveyDraft, type SaveDraftResult } from '@/hooks/useSaveSurveyDraft';
 import { draftToSaveDraftPayload, type WizardDraft } from '@/hooks/useWizardDraft';
+import { draftSyncFingerprint } from '@/utils/draftSyncFingerprint';
 import { useCallback, useEffect, useRef } from 'react';
 
 const AUTO_SYNC_DEBOUNCE_MS = 2000;
 
-export function useAutoDraftSync(draft: WizardDraft | null, update: (patch: Partial<WizardDraft>) => Promise<void>) {
+type SaveFn = (draft: WizardDraft) => Promise<SaveDraftResult>;
+
+export function useAutoDraftSync(
+  draft: WizardDraft | null,
+  update: (patch: Partial<WizardDraft>) => Promise<void>,
+  saveFromParent?: SaveFn,
+) {
   const { isOnline } = useNetworkStatus();
-  const { save } = useSaveSurveyDraft();
+  const { save: saveFromHook } = useSaveSurveyDraft();
+  const save = saveFromParent ?? saveFromHook;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncingRef = useRef(false);
   const lastSyncedFingerprint = useRef<string>('');
@@ -31,7 +39,7 @@ export function useAutoDraftSync(draft: WizardDraft | null, update: (patch: Part
           lastSyncedAt: Date.now(),
         };
         await update(patch);
-        lastSyncedFingerprint.current = `${d.localId}:${d.updatedAt}`;
+        lastSyncedFingerprint.current = draftSyncFingerprint(d);
         return result.surveyId;
       } finally {
         syncingRef.current = false;
@@ -43,7 +51,7 @@ export function useAutoDraftSync(draft: WizardDraft | null, update: (patch: Part
   useEffect(() => {
     if (!draft || !isOnline || !draftToSaveDraftPayload(draft)) return;
 
-    const fingerprint = `${draft.localId}:${draft.updatedAt}`;
+    const fingerprint = draftSyncFingerprint(draft);
     if (fingerprint === lastSyncedFingerprint.current && draft.serverSurveyId && !draft.pendingCloudSync) {
       return;
     }

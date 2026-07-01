@@ -1,6 +1,6 @@
 import { flatListProps, horizontalScrollProps } from '@/utils/scroll-props';
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { FlatList, Modal, Pressable, Text, View, type ListRenderItemInfo } from 'react-native';
 
 export interface WizardStepIndicator {
@@ -101,7 +101,15 @@ function StepPickerRow({
   );
 }
 
-export function WizardHeader({ title, subtitle, steps, activeKey, progress, onBack, onSelectStep }: WizardHeaderProps) {
+export const WizardHeader = memo(function WizardHeader({
+  title,
+  subtitle,
+  steps,
+  activeKey,
+  progress,
+  onBack,
+  onSelectStep,
+}: WizardHeaderProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const renderStep = useCallback(
@@ -190,4 +198,4 @@ export function WizardHeader({ title, subtitle, steps, activeKey, progress, onBa
       </Modal>
     </View>
   );
-}
+});

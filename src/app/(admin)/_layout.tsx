@@ -6,6 +6,7 @@ import { useTheme } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from 'convex/react';
 import { Tabs } from 'expo-router';
+import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,31 +15,34 @@ export default function AdminLayout() {
   const bottomInset = tabBarBottomInset(insets);
   const { convexReady } = useClerkConvexAuth();
   const { theme } = useTheme();
-  const pending = useQuery(api.admin.listPendingApprovals, convexReady ? {} : 'skip');
-  const pendingCount = pending?.length ?? 0;
+  const pendingCount = useQuery(api.admin.pendingApprovalCount, convexReady ? {} : 'skip') ?? 0;
+
+  const screenOptions = useMemo(
+    () => ({
+      headerShown: false,
+      lazy: true,
+      freezeOnBlur: Platform.OS === 'android',
+      tabBarActiveTintColor: theme.brand.primary,
+      tabBarInactiveTintColor: theme.ink.tertiary,
+      tabBarLabelStyle: {
+        fontSize: 11,
+        fontWeight: '600' as const,
+        marginBottom: Platform.OS === 'ios' ? 0 : 4,
+      },
+      tabBarStyle: {
+        backgroundColor: theme.bg.surface,
+        borderTopColor: theme.border.subtle,
+        height: TAB_BAR_CONTENT_HEIGHT + bottomInset,
+        paddingTop: 6,
+        paddingBottom: bottomInset + 4,
+      },
+    }),
+    [theme, bottomInset],
+  );
 
   return (
     <LayoutGuard mode="admin">
-      <Tabs
-        initialRouteName="approvals"
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: theme.brand.primary,
-          tabBarInactiveTintColor: theme.ink.tertiary,
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '600',
-            marginBottom: Platform.OS === 'ios' ? 0 : 4,
-          },
-          tabBarStyle: {
-            backgroundColor: theme.bg.surface,
-            borderTopColor: theme.border.subtle,
-            height: TAB_BAR_CONTENT_HEIGHT + bottomInset,
-            paddingTop: 6,
-            paddingBottom: bottomInset + 4,
-          },
-        }}
-      >
+      <Tabs initialRouteName="approvals" screenOptions={screenOptions}>
         <Tabs.Screen
           name="approvals"
           options={{

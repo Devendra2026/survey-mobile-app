@@ -3,12 +3,12 @@
  * Mobile does not call these; existing `masters.dashboardCounts` / `analytics.*`
  * endpoints remain unchanged for backward compatibility.
  */
-import { v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
-import { query, type QueryCtx } from "./_generated/server";
-import { hasCapability } from "./capabilities";
-import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
-import { requireUser } from "./helpers";
+import { v } from 'convex/values';
+import type { Doc, Id } from './_generated/dataModel';
+import { query, type QueryCtx } from './_generated/server';
+import { hasCapability } from './capabilities';
+import { fieldSurveyAccess, querySurveysInFieldScope } from './fieldAccess';
+import { requireUser } from './helpers';
 import {
   bucketKeysForUserScope,
   readBucketByKey,
@@ -16,9 +16,9 @@ import {
   readDashboardCountsFromAggregates,
   readWardCoverageFromAggregates,
   sumDailyForDate,
-} from "./lib/surveyAggregates";
-import { qcStatus, surveyStatus } from "./schema";
-import { resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
+} from './lib/surveyAggregates';
+import { qcStatus, surveyStatus } from './schema';
+import { resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from './tenancy';
 
 const surveyCountsShape = {
   total: v.number(),
@@ -43,7 +43,7 @@ const dashboardCountsShape = {
 };
 
 const qcSupervisorRow = {
-  reviewerId: v.id("users"),
+  reviewerId: v.id('users'),
   name: v.string(),
   email: v.string(),
   approved: v.number(),
@@ -52,7 +52,7 @@ const qcSupervisorRow = {
 };
 
 const userFilterOption = v.object({
-  _id: v.id("users"),
+  _id: v.id('users'),
   name: v.string(),
   email: v.string(),
 });
@@ -61,7 +61,7 @@ const statsBreakdownShape = v.object({
   summary: v.object(surveyCountsShape),
   byDistrict: v.array(
     v.object({
-      districtId: v.id("districts"),
+      districtId: v.id('districts'),
       code: v.string(),
       name: v.string(),
       ...breakdownRow,
@@ -69,22 +69,22 @@ const statsBreakdownShape = v.object({
   ),
   byUlb: v.array(
     v.object({
-      municipalityId: v.id("municipalities"),
+      municipalityId: v.id('municipalities'),
       code: v.string(),
       name: v.string(),
-      districtId: v.id("districts"),
+      districtId: v.id('districts'),
       districtName: v.string(),
       ...breakdownRow,
     }),
   ),
   bySurveyor: v.array(
     v.object({
-      surveyorId: v.id("users"),
+      surveyorId: v.id('users'),
       name: v.string(),
       email: v.string(),
       municipalityName: v.union(v.string(), v.null()),
       districtName: v.union(v.string(), v.null()),
-      status: v.literal("active"),
+      status: v.literal('active'),
       ...breakdownRow,
     }),
   ),
@@ -92,17 +92,17 @@ const statsBreakdownShape = v.object({
   filterOptions: v.object({
     districts: v.array(
       v.object({
-        _id: v.id("districts"),
+        _id: v.id('districts'),
         code: v.string(),
         name: v.string(),
       }),
     ),
     municipalities: v.array(
       v.object({
-        _id: v.id("municipalities"),
+        _id: v.id('municipalities'),
         code: v.string(),
         name: v.string(),
-        districtId: v.id("districts"),
+        districtId: v.id('districts'),
       }),
     ),
     surveyors: v.array(userFilterOption),
@@ -119,7 +119,7 @@ const dailyTrendPointShape = v.object({
 });
 
 const wardCoverageRowShape = v.object({
-  municipalityId: v.id("municipalities"),
+  municipalityId: v.id('municipalities'),
   municipalityName: v.string(),
   wardNo: v.string(),
   total: v.number(),
@@ -159,39 +159,39 @@ type SurveyCounts = {
   rejected: number;
 };
 
-function countRows(rows: Doc<"surveys">[], todayStartMs: number | null): SurveyCounts {
+function countRows(rows: Doc<'surveys'>[], todayStartMs: number | null): SurveyCounts {
   return {
     total: rows.length,
     today: todayStartMs !== null ? rows.filter((r) => r._creationTime >= todayStartMs).length : 0,
-    drafts: rows.filter((r) => r.status === "draft").length,
-    submitted: rows.filter((r) => r.status === "submitted").length,
-    approved: rows.filter((r) => r.qcStatus === "approved").length,
-    rejected: rows.filter((r) => r.qcStatus === "rejected").length,
+    drafts: rows.filter((r) => r.status === 'draft').length,
+    submitted: rows.filter((r) => r.status === 'submitted').length,
+    approved: rows.filter((r) => r.qcStatus === 'approved').length,
+    rejected: rows.filter((r) => r.qcStatus === 'rejected').length,
   };
 }
 
-function computeDashboardCounts(rows: Doc<"surveys">[], todayMs: number | null) {
+function computeDashboardCounts(rows: Doc<'surveys'>[], todayMs: number | null) {
   return {
     total: rows.length,
     today: todayMs !== null ? rows.filter((r) => r._creationTime >= todayMs).length : 0,
-    drafts: rows.filter((r) => r.status === "draft").length,
-    pending: rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
+    drafts: rows.filter((r) => r.status === 'draft').length,
+    pending: rows.filter((r) => r.qcStatus === 'pending' && r.status === 'submitted').length,
     submittedToday:
       todayMs !== null
         ? rows.filter(
             (r) =>
-              r.status === "submitted" &&
+              r.status === 'submitted' &&
               (r.submittedAt !== undefined ? r.submittedAt >= todayMs : r._creationTime >= todayMs),
           ).length
         : 0,
-    approved: rows.filter((r) => r.qcStatus === "approved").length,
-    submitted: rows.filter((r) => r.status === "submitted").length,
-    rejected: rows.filter((r) => r.qcStatus === "rejected").length,
+    approved: rows.filter((r) => r.qcStatus === 'approved').length,
+    submitted: rows.filter((r) => r.status === 'submitted').length,
+    rejected: rows.filter((r) => r.qcStatus === 'rejected').length,
   };
 }
 
-function groupCounts(rows: Doc<"surveys">[], keyFn: (row: Doc<"surveys">) => string): Map<string, Doc<"surveys">[]> {
-  const groups = new Map<string, Doc<"surveys">[]>();
+function groupCounts(rows: Doc<'surveys'>[], keyFn: (row: Doc<'surveys'>) => string): Map<string, Doc<'surveys'>[]> {
+  const groups = new Map<string, Doc<'surveys'>[]>();
   for (const row of rows) {
     const key = keyFn(row);
     const bucket = groups.get(key);
@@ -202,10 +202,10 @@ function groupCounts(rows: Doc<"surveys">[], keyFn: (row: Doc<"surveys">) => str
 }
 
 function filterActiveUsersInScope(
-  users: Doc<"users">[],
-  muniIds: Set<Id<"municipalities">>,
-  districtIds: Set<Id<"districts">>,
-): Doc<"users">[] {
+  users: Doc<'users'>[],
+  muniIds: Set<Id<'municipalities'>>,
+  districtIds: Set<Id<'districts'>>,
+): Doc<'users'>[] {
   return users.filter((u) => {
     if (u.municipalityId && !muniIds.has(u.municipalityId)) return false;
     if (u.districtId && !districtIds.has(u.districtId)) return false;
@@ -215,16 +215,16 @@ function filterActiveUsersInScope(
 
 function dayKey(ms: number): string {
   const d = new Date(ms);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** Pick the cheaper QC decision load strategy based on scope size. */
 async function loadScopedQcDecisionsByReviewer(
   ctx: QueryCtx,
-  scopedSurveyIds: Set<Id<"surveys">>,
-  activeQcSupervisors: Doc<"users">[],
-): Promise<Map<Id<"users">, Doc<"qcDecisions">[]>> {
-  const byReviewer = new Map<Id<"users">, Doc<"qcDecisions">[]>();
+  scopedSurveyIds: Set<Id<'surveys'>>,
+  activeQcSupervisors: Doc<'users'>[],
+): Promise<Map<Id<'users'>, Doc<'qcDecisions'>[]>> {
+  const byReviewer = new Map<Id<'users'>, Doc<'qcDecisions'>[]>();
   for (const u of activeQcSupervisors) {
     byReviewer.set(u._id, []);
   }
@@ -234,12 +234,12 @@ async function loadScopedQcDecisionsByReviewer(
   }
 
   if (scopedSurveyIds.size <= activeQcSupervisors.length) {
-    const allDecisions: Doc<"qcDecisions">[] = [];
+    const allDecisions: Doc<'qcDecisions'>[] = [];
     await Promise.all(
       [...scopedSurveyIds].map(async (surveyId) => {
         const decisions = await ctx.db
-          .query("qcDecisions")
-          .withIndex("by_survey", (q) => q.eq("surveyId", surveyId))
+          .query('qcDecisions')
+          .withIndex('by_survey', (q) => q.eq('surveyId', surveyId))
           .collect();
         allDecisions.push(...decisions);
       }),
@@ -254,8 +254,8 @@ async function loadScopedQcDecisionsByReviewer(
   await Promise.all(
     activeQcSupervisors.map(async (u) => {
       const decisions = await ctx.db
-        .query("qcDecisions")
-        .withIndex("by_reviewer", (q) => q.eq("reviewerId", u._id))
+        .query('qcDecisions')
+        .withIndex('by_reviewer', (q) => q.eq('reviewerId', u._id))
         .collect();
       byReviewer.set(
         u._id,
@@ -283,7 +283,7 @@ async function countsFromBucket(ctx: QueryCtx, bucketKey: string, todayDateKey: 
   };
 }
 
-async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStartMs: number | null) {
+async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<'users'>, todayStartMs: number | null) {
   const scope = await resolveTenantScope(ctx, me);
   const districtIds = tenantDistrictIds(scope);
   const muniIds = tenantMunicipalityIds(scope);
@@ -291,7 +291,7 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStart
   const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
   const todayDateKey =
     todayStartMs !== null
-      ? `${new Date(todayStartMs).getFullYear()}-${String(new Date(todayStartMs).getMonth() + 1).padStart(2, "0")}-${String(new Date(todayStartMs).getDate()).padStart(2, "0")}`
+      ? `${new Date(todayStartMs).getFullYear()}-${String(new Date(todayStartMs).getMonth() + 1).padStart(2, '0')}-${String(new Date(todayStartMs).getDate()).padStart(2, '0')}`
       : null;
 
   const byDistrict = await Promise.all(
@@ -312,7 +312,7 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStart
         code: m.code,
         name: m.name,
         districtId: m.districtId,
-        districtName: d?.name ?? "—",
+        districtName: d?.name ?? '—',
         ...(await countsFromBucket(ctx, `municipality:${m._id}`, todayDateKey)),
       };
     }),
@@ -321,8 +321,8 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStart
 
   const activeSurveyors = filterActiveUsersInScope(
     await ctx.db
-      .query("users")
-      .withIndex("by_role_status", (q) => q.eq("role", "surveyor").eq("status", "active"))
+      .query('users')
+      .withIndex('by_role_status', (q) => q.eq('role', 'surveyor').eq('status', 'active'))
       .collect(),
     muniIds,
     districtIds,
@@ -339,7 +339,7 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStart
           email: u.email,
           municipalityName: muni?.name ?? null,
           districtName: dist?.name ?? null,
-          status: "active" as const,
+          status: 'active' as const,
           ...(await countsFromBucket(ctx, `surveyor:${u._id}`, todayDateKey)),
         };
       }),
@@ -348,14 +348,14 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStart
 
   const activeQcSupervisors = filterActiveUsersInScope(
     await ctx.db
-      .query("users")
-      .withIndex("by_role_status", (q) => q.eq("role", "qc_supervisor").eq("status", "active"))
+      .query('users')
+      .withIndex('by_role_status', (q) => q.eq('role', 'qc_supervisor').eq('status', 'active'))
       .collect(),
     muniIds,
     districtIds,
   );
 
-  const { collectSurveysInFieldScope } = await import("./fieldAccess");
+  const { collectSurveysInFieldScope } = await import('./fieldAccess');
   const rows = await collectSurveysInFieldScope(ctx, me);
   const scopedSurveyIds = new Set(rows.map((r) => r._id));
   const decisionsByReviewer = await loadScopedQcDecisionsByReviewer(ctx, scopedSurveyIds, activeQcSupervisors);
@@ -363,8 +363,8 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStart
   const byQcSupervisor = activeQcSupervisors
     .map((u) => {
       const scoped = decisionsByReviewer.get(u._id) ?? [];
-      const approved = scoped.filter((d) => d.decision === "approve").length;
-      const rejected = scoped.filter((d) => d.decision === "reject").length;
+      const approved = scoped.filter((d) => d.decision === 'approve').length;
+      const rejected = scoped.filter((d) => d.decision === 'reject').length;
       return {
         reviewerId: u._id,
         name: u.name,
@@ -380,19 +380,18 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStart
     summary: await (async () => {
       const access = await fieldSurveyAccess(ctx, me);
       const keys = await bucketKeysForUserScope(ctx, me, scope, access);
-      let summary = { total: 0, today: 0, drafts: 0, submitted: 0, approved: 0, rejected: 0 };
-      for (const key of keys) {
-        const part = await countsFromBucket(ctx, key, todayDateKey);
-        summary = {
-          total: summary.total + part.total,
-          today: summary.today + part.today,
-          drafts: summary.drafts + part.drafts,
-          submitted: summary.submitted + part.submitted,
-          approved: summary.approved + part.approved,
-          rejected: summary.rejected + part.rejected,
-        };
-      }
-      return summary;
+      const summaryParts = await Promise.all(keys.map((key) => countsFromBucket(ctx, key, todayDateKey)));
+      return summaryParts.reduce(
+        (acc, part) => ({
+          total: acc.total + part.total,
+          today: acc.today + part.today,
+          drafts: acc.drafts + part.drafts,
+          submitted: acc.submitted + part.submitted,
+          approved: acc.approved + part.approved,
+          rejected: acc.rejected + part.rejected,
+        }),
+        { total: 0, today: 0, drafts: 0, submitted: 0, approved: 0, rejected: 0 },
+      );
     })(),
     byDistrict,
     byUlb,
@@ -420,7 +419,7 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, todayStart
   };
 }
 
-function computeDailyTrend(rows: Doc<"surveys">[], days: number, nowMs: number) {
+function computeDailyTrend(rows: Doc<'surveys'>[], days: number, nowMs: number) {
   const start = new Date(nowMs);
   start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() - (days - 1));
@@ -443,8 +442,8 @@ function computeDailyTrend(rows: Doc<"surveys">[], days: number, nowMs: number) 
       const b = buckets.get(dayKey(r.submittedAt));
       if (b) {
         b.submitted += 1;
-        if (r.qcStatus === "approved") b.approved += 1;
-        else if (r.qcStatus === "rejected") b.rejected += 1;
+        if (r.qcStatus === 'approved') b.approved += 1;
+        else if (r.qcStatus === 'rejected') b.rejected += 1;
       }
     }
   }
@@ -452,23 +451,23 @@ function computeDailyTrend(rows: Doc<"surveys">[], days: number, nowMs: number) 
   return [...buckets.entries()].map(([date, b]) => ({ date, ...b }));
 }
 
-function computeWardCoverage(rows: Doc<"surveys">[], muniMap: Map<Id<"municipalities">, Doc<"municipalities">>) {
+function computeWardCoverage(rows: Doc<'surveys'>[], muniMap: Map<Id<'municipalities'>, Doc<'municipalities'>>) {
   const groups = new Map<
     string,
-    { municipalityId: Id<"municipalities">; wardNo: string; total: number; approved: number }
+    { municipalityId: Id<'municipalities'>; wardNo: string; total: number; approved: number }
   >();
   for (const r of rows) {
     const key = `${r.municipalityId}::${r.wardNo}`;
     const g = groups.get(key) ?? { municipalityId: r.municipalityId, wardNo: r.wardNo, total: 0, approved: 0 };
     g.total += 1;
-    if (r.qcStatus === "approved") g.approved += 1;
+    if (r.qcStatus === 'approved') g.approved += 1;
     groups.set(key, g);
   }
 
   return [...groups.values()]
     .map((g) => ({
       ...g,
-      municipalityName: muniMap.get(g.municipalityId)?.name ?? "—",
+      municipalityName: muniMap.get(g.municipalityId)?.name ?? '—',
       approvalRate: g.total > 0 ? Math.round((g.approved / g.total) * 100) : 0,
     }))
     .sort((a, b) => b.total - a.total);
@@ -486,7 +485,7 @@ export const homeBundle = query({
   handler: async (ctx, args) => {
     const me = await requireUser(ctx, { allowPending: true });
 
-    if (me.status !== "active") {
+    if (me.status !== 'active') {
       return { counts: EMPTY_COUNTS, analytics: null };
     }
 
@@ -502,14 +501,13 @@ export const homeBundle = query({
       rejected: agg.rejected,
     };
 
-    const canViewAnalytics = await hasCapability(ctx, me, "analytics.view");
+    const canViewAnalytics = await hasCapability(ctx, me, 'analytics.view');
     if (!canViewAnalytics) {
       return { counts, analytics: null };
     }
 
     const days = Math.min(Math.max(args.trendDays ?? 30, 1), 180);
-    const scope = await resolveTenantScope(ctx, me);
-    const access = await fieldSurveyAccess(ctx, me);
+    const [scope, access] = await Promise.all([resolveTenantScope(ctx, me), fieldSurveyAccess(ctx, me)]);
     const keys = await bucketKeysForUserScope(ctx, me, scope, access);
     const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
 
@@ -530,7 +528,7 @@ export const homeBundle = query({
 
     const wardCoverage = wardRows.map((g) => ({
       ...g,
-      municipalityName: muniMap.get(g.municipalityId)?.name ?? "—",
+      municipalityName: muniMap.get(g.municipalityId)?.name ?? '—',
       approvalRate: g.total > 0 ? Math.round((g.approved / g.total) * 100) : 0,
     }));
 
@@ -542,7 +540,7 @@ export const homeBundle = query({
 });
 
 const recentActivityRowShape = v.object({
-  _id: v.id("surveys"),
+  _id: v.id('surveys'),
   propertyId: v.optional(v.string()),
   parcelNo: v.optional(v.string()),
   status: surveyStatus,
@@ -558,12 +556,12 @@ export const recentActivity = query({
   returns: v.array(recentActivityRowShape),
   handler: async (ctx) => {
     const me = await requireUser(ctx, { allowPending: true });
-    if (me.status !== "active") return [];
+    if (me.status !== 'active') return [];
 
     const rows = await querySurveysInFieldScope(ctx, me, { limit: 20 });
     const surveyorIds = [...new Set(rows.map((r) => r.surveyorId))];
-    const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get("users", id)));
-    const nameById = new Map<Id<"users">, string>();
+    const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get('users', id)));
+    const nameById = new Map<Id<'users'>, string>();
     for (const s of surveyors) {
       if (s) nameById.set(s._id, s.name);
     }

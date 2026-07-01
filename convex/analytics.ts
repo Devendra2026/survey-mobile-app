@@ -4,14 +4,14 @@
  * All counts respect `resolveTenantScope`: supervisors see only their district/ULB;
  * admins see the full catalog. Optional filters narrow the summary and child tables.
  */
-import { v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
-import { query, type QueryCtx } from "./_generated/server";
-import { requireCapability } from "./capabilities";
-import { collectSurveysInFieldScope, fieldSurveyAccess } from "./fieldAccess";
-import { clientError, requireUser } from "./helpers";
-import { bucketKeysForUserScope, readBucketByKey, sumDailyForDate } from "./lib/surveyAggregates";
-import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
+import { v } from 'convex/values';
+import type { Doc, Id } from './_generated/dataModel';
+import { query, type QueryCtx } from './_generated/server';
+import { requireCapability } from './capabilities';
+import { collectSurveysInFieldScope, fieldSurveyAccess } from './fieldAccess';
+import { clientError, requireUser } from './helpers';
+import { bucketKeysForUserScope, readBucketByKey, sumDailyForDate } from './lib/surveyAggregates';
+import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from './tenancy';
 
 export const surveyCountsShape = {
   total: v.number(),
@@ -27,7 +27,7 @@ const breakdownRow = {
 };
 
 const qcSupervisorRow = {
-  reviewerId: v.id("users"),
+  reviewerId: v.id('users'),
   name: v.string(),
   email: v.string(),
   approved: v.number(),
@@ -36,7 +36,7 @@ const qcSupervisorRow = {
 };
 
 const userFilterOption = v.object({
-  _id: v.id("users"),
+  _id: v.id('users'),
   name: v.string(),
   email: v.string(),
 });
@@ -50,19 +50,19 @@ export type SurveyCounts = {
   rejected: number;
 };
 
-function countRows(rows: Doc<"surveys">[], todayStartMs: number | null): SurveyCounts {
+function countRows(rows: Doc<'surveys'>[], todayStartMs: number | null): SurveyCounts {
   return {
     total: rows.length,
     today: todayStartMs !== null ? rows.filter((r) => r._creationTime >= todayStartMs).length : 0,
-    drafts: rows.filter((r) => r.status === "draft").length,
-    submitted: rows.filter((r) => r.status === "submitted").length,
-    approved: rows.filter((r) => r.qcStatus === "approved").length,
-    rejected: rows.filter((r) => r.qcStatus === "rejected").length,
+    drafts: rows.filter((r) => r.status === 'draft').length,
+    submitted: rows.filter((r) => r.status === 'submitted').length,
+    approved: rows.filter((r) => r.qcStatus === 'approved').length,
+    rejected: rows.filter((r) => r.qcStatus === 'rejected').length,
   };
 }
 
 /** Load every survey row visible to admin, supervisor, or QC within tenant scope. */
-async function loadScopedSurveys(ctx: QueryCtx, me: Doc<"users">): Promise<Doc<"surveys">[]> {
+async function loadScopedSurveys(ctx: QueryCtx, me: Doc<'users'>): Promise<Doc<'surveys'>[]> {
   return collectSurveysInFieldScope(ctx, me);
 }
 
@@ -88,37 +88,37 @@ function todayDateKeyFromMs(nowMs: number | undefined): string | null {
   const d = new Date(nowMs);
   d.setHours(0, 0, 0, 0);
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
 async function assertDistrictInScope(
-  me: Doc<"users">,
-  districtId: Id<"districts">,
-  allowedDistrictIds: Set<Id<"districts">>,
+  me: Doc<'users'>,
+  districtId: Id<'districts'>,
+  allowedDistrictIds: Set<Id<'districts'>>,
 ) {
-  if (me.role === "admin") return;
+  if (me.role === 'admin') return;
   if (!allowedDistrictIds.has(districtId)) {
-    clientError("FORBIDDEN", "This district is outside your assigned scope");
+    clientError('FORBIDDEN', 'This district is outside your assigned scope');
   }
 }
 
 async function assertSurveyorInScope(
   ctx: QueryCtx,
-  me: Doc<"users">,
-  surveyor: Doc<"users">,
-  muniIds: Set<Id<"municipalities">>,
-  districtIds: Set<Id<"districts">>,
+  me: Doc<'users'>,
+  surveyor: Doc<'users'>,
+  muniIds: Set<Id<'municipalities'>>,
+  districtIds: Set<Id<'districts'>>,
 ) {
-  if (me.role === "admin") return;
+  if (me.role === 'admin') return;
   if (surveyor.municipalityId && muniIds.has(surveyor.municipalityId)) return;
   if (surveyor.districtId && districtIds.has(surveyor.districtId)) return;
-  clientError("FORBIDDEN", "This surveyor is outside your assigned scope");
+  clientError('FORBIDDEN', 'This surveyor is outside your assigned scope');
 }
 
-function groupCounts(rows: Doc<"surveys">[], keyFn: (row: Doc<"surveys">) => string): Map<string, Doc<"surveys">[]> {
-  const groups = new Map<string, Doc<"surveys">[]>();
+function groupCounts(rows: Doc<'surveys'>[], keyFn: (row: Doc<'surveys'>) => string): Map<string, Doc<'surveys'>[]> {
+  const groups = new Map<string, Doc<'surveys'>[]>();
   for (const row of rows) {
     const key = keyFn(row);
     const bucket = groups.get(key);
@@ -129,13 +129,13 @@ function groupCounts(rows: Doc<"surveys">[], keyFn: (row: Doc<"surveys">) => str
 }
 
 function filterActiveUsersInScope(
-  users: Doc<"users">[],
-  muniIds: Set<Id<"municipalities">>,
-  districtIds: Set<Id<"districts">>,
-  districtFilter?: Id<"districts">,
-  muniFilter?: Id<"municipalities">,
-  muniMap?: Map<Id<"municipalities">, Doc<"municipalities">>,
-): Doc<"users">[] {
+  users: Doc<'users'>[],
+  muniIds: Set<Id<'municipalities'>>,
+  districtIds: Set<Id<'districts'>>,
+  districtFilter?: Id<'districts'>,
+  muniFilter?: Id<'municipalities'>,
+  muniMap?: Map<Id<'municipalities'>, Doc<'municipalities'>>,
+): Doc<'users'>[] {
   return users.filter((u) => {
     if (u.municipalityId && !muniIds.has(u.municipalityId)) return false;
     if (u.districtId && !districtIds.has(u.districtId)) return false;
@@ -156,16 +156,16 @@ function filterActiveUsersInScope(
  */
 export const surveyStatsBreakdown = query({
   args: {
-    districtId: v.optional(v.id("districts")),
-    municipalityId: v.optional(v.id("municipalities")),
-    surveyorId: v.optional(v.id("users")),
+    districtId: v.optional(v.id('districts')),
+    municipalityId: v.optional(v.id('municipalities')),
+    surveyorId: v.optional(v.id('users')),
     nowMs: v.optional(v.number()),
   },
   returns: v.object({
     summary: v.object(surveyCountsShape),
     byDistrict: v.array(
       v.object({
-        districtId: v.id("districts"),
+        districtId: v.id('districts'),
         code: v.string(),
         name: v.string(),
         ...breakdownRow,
@@ -173,22 +173,22 @@ export const surveyStatsBreakdown = query({
     ),
     byUlb: v.array(
       v.object({
-        municipalityId: v.id("municipalities"),
+        municipalityId: v.id('municipalities'),
         code: v.string(),
         name: v.string(),
-        districtId: v.id("districts"),
+        districtId: v.id('districts'),
         districtName: v.string(),
         ...breakdownRow,
       }),
     ),
     bySurveyor: v.array(
       v.object({
-        surveyorId: v.id("users"),
+        surveyorId: v.id('users'),
         name: v.string(),
         email: v.string(),
         municipalityName: v.union(v.string(), v.null()),
         districtName: v.union(v.string(), v.null()),
-        status: v.literal("active"),
+        status: v.literal('active'),
         ...breakdownRow,
       }),
     ),
@@ -196,17 +196,17 @@ export const surveyStatsBreakdown = query({
     filterOptions: v.object({
       districts: v.array(
         v.object({
-          _id: v.id("districts"),
+          _id: v.id('districts'),
           code: v.string(),
           name: v.string(),
         }),
       ),
       municipalities: v.array(
         v.object({
-          _id: v.id("municipalities"),
+          _id: v.id('municipalities'),
           code: v.string(),
           name: v.string(),
-          districtId: v.id("districts"),
+          districtId: v.id('districts'),
         }),
       ),
       surveyors: v.array(userFilterOption),
@@ -215,7 +215,7 @@ export const surveyStatsBreakdown = query({
   }),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    await requireCapability(ctx, me, "analytics.view");
+    await requireCapability(ctx, me, 'analytics.view');
 
     const scope = await resolveTenantScope(ctx, me);
     const districtIds = tenantDistrictIds(scope);
@@ -230,9 +230,9 @@ export const surveyStatsBreakdown = query({
       await assertMunicipalityInScope(ctx, me, args.municipalityId);
     }
     if (args.surveyorId) {
-      const surveyor = await ctx.db.get("users", args.surveyorId);
-      if (!surveyor || surveyor.role !== "surveyor") {
-        clientError("BAD_REQUEST", "Unknown surveyor");
+      const surveyor = await ctx.db.get('users', args.surveyorId);
+      if (!surveyor || surveyor.role !== 'surveyor') {
+        clientError('BAD_REQUEST', 'Unknown surveyor');
       }
       await assertSurveyorInScope(ctx, me, surveyor, muniIds, districtIds);
     }
@@ -264,7 +264,7 @@ export const surveyStatsBreakdown = query({
           code: m.code,
           name: m.name,
           districtId: m.districtId,
-          districtName: d?.name ?? "—",
+          districtName: d?.name ?? '—',
           ...(await countsFromBucket(ctx, `municipality:${m._id}`, todayDateKey)),
         };
       }),
@@ -273,8 +273,8 @@ export const surveyStatsBreakdown = query({
 
     const activeSurveyors = filterActiveUsersInScope(
       await ctx.db
-        .query("users")
-        .withIndex("by_role_status", (q) => q.eq("role", "surveyor").eq("status", "active"))
+        .query('users')
+        .withIndex('by_role_status', (q) => q.eq('role', 'surveyor').eq('status', 'active'))
         .collect(),
       muniIds,
       districtIds,
@@ -283,34 +283,39 @@ export const surveyStatsBreakdown = query({
       muniMap,
     );
 
+    const surveyorsToProcess = [];
+    for (const u of activeSurveyors) {
+      if (!args.surveyorId || u._id === args.surveyorId) {
+        surveyorsToProcess.push(u);
+      }
+    }
+
     const bySurveyor = (
       await Promise.all(
-        activeSurveyors
-          .filter((u) => !args.surveyorId || u._id === args.surveyorId)
-          .map(async (u) => {
-            const muni = u.municipalityId ? muniMap.get(u.municipalityId) : undefined;
-            const dist = u.districtId
-              ? districtMap.get(u.districtId)
-              : muni
-                ? districtMap.get(muni.districtId)
-                : undefined;
-            return {
-              surveyorId: u._id,
-              name: u.name,
-              email: u.email,
-              municipalityName: muni?.name ?? null,
-              districtName: dist?.name ?? null,
-              status: "active" as const,
-              ...(await countsFromBucket(ctx, `surveyor:${u._id}`, todayDateKey)),
-            };
-          }),
+        surveyorsToProcess.map(async (u) => {
+          const muni = u.municipalityId ? muniMap.get(u.municipalityId) : undefined;
+          const dist = u.districtId
+            ? districtMap.get(u.districtId)
+            : muni
+              ? districtMap.get(muni.districtId)
+              : undefined;
+          return {
+            surveyorId: u._id,
+            name: u.name,
+            email: u.email,
+            municipalityName: muni?.name ?? null,
+            districtName: dist?.name ?? null,
+            status: 'active' as const,
+            ...(await countsFromBucket(ctx, `surveyor:${u._id}`, todayDateKey)),
+          };
+        }),
       )
     ).sort((a, b) => b.approved + b.submitted - (a.approved + a.submitted));
 
     const activeQcSupervisors = filterActiveUsersInScope(
       await ctx.db
-        .query("users")
-        .withIndex("by_role_status", (q) => q.eq("role", "qc_supervisor").eq("status", "active"))
+        .query('users')
+        .withIndex('by_role_status', (q) => q.eq('role', 'qc_supervisor').eq('status', 'active'))
         .collect(),
       muniIds,
       districtIds,
@@ -325,37 +330,30 @@ export const surveyStatsBreakdown = query({
     else if (args.municipalityId) summaryKeys = [`municipality:${args.municipalityId}`];
     else if (args.districtId) summaryKeys = [`district:${args.districtId}`];
 
-    let summary: SurveyCounts = {
-      total: 0,
-      today: 0,
-      drafts: 0,
-      submitted: 0,
-      approved: 0,
-      rejected: 0,
-    };
-    for (const key of summaryKeys) {
-      const part = await countsFromBucket(ctx, key, todayDateKey);
-      summary = {
-        total: summary.total + part.total,
-        today: summary.today + part.today,
-        drafts: summary.drafts + part.drafts,
-        submitted: summary.submitted + part.submitted,
-        approved: summary.approved + part.approved,
-        rejected: summary.rejected + part.rejected,
-      };
-    }
+    const summaryParts = await Promise.all(summaryKeys.map((key) => countsFromBucket(ctx, key, todayDateKey)));
+    const summary = summaryParts.reduce<SurveyCounts>(
+      (acc, part) => ({
+        total: acc.total + part.total,
+        today: acc.today + part.today,
+        drafts: acc.drafts + part.drafts,
+        submitted: acc.submitted + part.submitted,
+        approved: acc.approved + part.approved,
+        rejected: acc.rejected + part.rejected,
+      }),
+      { total: 0, today: 0, drafts: 0, submitted: 0, approved: 0, rejected: 0 },
+    );
 
     const rows = await loadScopedSurveys(ctx, me);
     const scopedSurveyIds = new Set(rows.map((r) => r._id));
     const byQcSupervisor = await Promise.all(
       activeQcSupervisors.map(async (u) => {
         const decisions = await ctx.db
-          .query("qcDecisions")
-          .withIndex("by_reviewer", (q) => q.eq("reviewerId", u._id))
+          .query('qcDecisions')
+          .withIndex('by_reviewer', (q) => q.eq('reviewerId', u._id))
           .collect();
         const scoped = decisions.filter((d) => scopedSurveyIds.has(d.surveyId));
-        const approved = scoped.filter((d) => d.decision === "approve").length;
-        const rejected = scoped.filter((d) => d.decision === "reject").length;
+        const approved = scoped.filter((d) => d.decision === 'approve').length;
+        const rejected = scoped.filter((d) => d.decision === 'reject').length;
         return {
           reviewerId: u._id,
           name: u.name,

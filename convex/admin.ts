@@ -93,6 +93,23 @@ export const listPendingApprovals = query({
   },
 });
 
+/** Lightweight count for admin tab badge — avoids hydrating full pending user rows. */
+export const pendingApprovalCount = query({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const me = await requireUser(ctx);
+    requireRole(me, 'admin');
+
+    const rows = await ctx.db
+      .query('users')
+      .withIndex('by_status', (q) => q.eq('status', 'pending_approval'))
+      .collect();
+
+    return rows.length;
+  },
+});
+
 /**
  * Approve a pending user, granting role + tenant scope in one atomic step.
  *
@@ -346,10 +363,10 @@ export const listUsers = query({
     status: v.optional(v.union(v.literal('pending_approval'), v.literal('active'), v.literal('disabled'))),
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    await assertCanListUsers(ctx, me);
-
     if (args.role && !args.status) {
+      const me = await requireUser(ctx);
+      await assertCanListUsers(ctx, me);
+
       const allRows = (
         await Promise.all(
           USER_STATUSES.map((status) =>
@@ -373,6 +390,9 @@ export const listUsers = query({
         isDone: nextOffset >= allRows.length,
       };
     }
+
+    const me = await requireUser(ctx);
+    await assertCanListUsers(ctx, me);
 
     let q;
     if (args.role && args.status) {

@@ -20,9 +20,9 @@ import {
 import { toUserMessage } from '@/utils/errors';
 import { backOrReplace } from '@/utils/navigation';
 import { wizardScrollContentStyle, wizardScrollViewProps } from '@/utils/scroll-props';
-import { stepValidationDetails } from '@/utils/wizardValidation';
+import { stepMissingFields } from '@/utils/wizardValidation';
 import { useRouter } from 'expo-router';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useDeferredValue, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FloatingSaveBar } from './floating-save-bar';
@@ -55,7 +55,18 @@ export function WizardStepFrame({
   const { save: saveToServer, saving: savingDraft } = useSaveSurveyDraft();
   const [toast, setToast] = useState<{ title: string; tone: 'success' | 'danger' } | null>(null);
 
-  useAutoDraftSync(draft, update);
+  useAutoDraftSync(draft, update, saveToServer);
+
+  const deferredDraft = useDeferredValue(draft);
+  const progress = useMemo(() => {
+    if (!draft) return { current: 0, total: 1, percent: 0, label: '' };
+    return wizardStepProgress(deferredDraft ?? draft, activeKey);
+  }, [draft, deferredDraft, activeKey]);
+  const headerSteps = useMemo(() => {
+    if (!draft) return [];
+    return indicatorSteps(deferredDraft ?? draft, activeKey);
+  }, [draft, deferredDraft, activeKey]);
+  const currentMissing = useMemo(() => (draft ? stepMissingFields(draft, activeKey) : []), [draft, activeKey]);
 
   if (loadingDraft || !draft || loading) {
     return (
@@ -66,9 +77,6 @@ export function WizardStepFrame({
   }
 
   const nextBlocked = typeof nextDisabled === 'function' ? nextDisabled(draft) : Boolean(nextDisabled);
-  const progress = wizardStepProgress(draft, activeKey);
-  const currentStepValidation = stepValidationDetails(draft).find((s) => s.key === activeKey);
-  const currentMissing = currentStepValidation?.missingFields ?? [];
 
   const goBack = async () => {
     const prev = prevStep(activeKey);
@@ -173,7 +181,7 @@ export function WizardStepFrame({
         <WizardHeader
           title={title}
           subtitle={subtitle}
-          steps={indicatorSteps(draft, activeKey)}
+          steps={headerSteps}
           activeKey={activeKey}
           progress={progress}
           onBack={goBack}

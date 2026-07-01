@@ -17,7 +17,7 @@ import { toUserMessage } from '@/utils/errors';
 import { BottomBarClearance } from '@/utils/ui-layout';
 import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -58,6 +58,13 @@ export default function AssignUserScreen() {
   const [statusBusy, setStatusBusy] = useState(false);
   const [toast, setToast] = useState<{ title: string; tone: 'success' | 'danger' } | null>(null);
   const hideToast = useCallback(() => setToast(null), []);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current !== null) clearTimeout(navTimerRef.current);
+    };
+  }, []);
 
   const districtOptions = useMemo(
     () => tree?.map((d) => ({ value: d._id, label: `${d.name} (${d.stateName})` })) ?? [],
@@ -121,7 +128,7 @@ export default function AssignUserScreen() {
     try {
       await setAllotments({ userId: user._id, allotments: payload });
       setToast({ title: 'Allotments saved', tone: 'success' });
-      setTimeout(() => router.back(), 600);
+      navTimerRef.current = setTimeout(() => router.back(), 600);
     } catch (e) {
       setToast({ title: toUserMessage(e), tone: 'danger' });
     } finally {

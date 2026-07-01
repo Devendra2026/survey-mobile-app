@@ -3,10 +3,12 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { RoleSegmentedControl, UserDirectoryCard, UserSearchBar, type UserItem } from '@/components/admin/user-list';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { flatListProps } from '@/utils/scroll-props';
+import { FlashList } from '@shopify/flash-list';
 import { usePaginatedQuery } from 'convex/react';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 
 const PAGE_SIZE = 30;
 
@@ -16,6 +18,12 @@ export default function AdminUsersScreen() {
   const router = useRouter();
   const [role, setRole] = useState<string | undefined>(undefined);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const paginated = usePaginatedQuery(api.admin.listUsers, { role: role ?? undefined }, { initialNumItems: PAGE_SIZE });
 
@@ -27,7 +35,7 @@ export default function AdminUsersScreen() {
   const isLoadingMore = status === 'LoadingMore';
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (!q) return users;
     return users.filter(
       (u) =>
@@ -35,7 +43,7 @@ export default function AdminUsersScreen() {
         u.email.toLowerCase().includes(q) ||
         (u.municipalityName?.toLowerCase().includes(q) ?? false),
     );
-  }, [users, search]);
+  }, [users, debouncedSearch]);
 
   const onOpenUser = useCallback(
     (userId: Id<'users'>) => {
@@ -50,6 +58,16 @@ export default function AdminUsersScreen() {
   const renderItem = useCallback(
     ({ item }: { item: UserItem }) => <UserDirectoryCard item={item} onOpen={onOpenUser} />,
     [onOpenUser],
+  );
+
+  const listFooter = useCallback(
+    () =>
+      isLoadingMore ? (
+        <View className="py-4 items-center">
+          <ActivityIndicator color="#003B8E" />
+        </View>
+      ) : null,
+    [isLoadingMore],
   );
 
   return (
@@ -83,21 +101,16 @@ export default function AdminUsersScreen() {
           }
         />
       ) : (
-        <FlatList
+        <FlashList
           data={filtered}
           keyExtractor={(u) => u._id}
           contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 24 }}
+          {...flatListProps}
           onEndReached={() => {
             if (status === 'CanLoadMore') loadMore(PAGE_SIZE);
           }}
           onEndReachedThreshold={0.4}
-          ListFooterComponent={
-            isLoadingMore ? (
-              <View className="py-4 items-center">
-                <ActivityIndicator color="#003B8E" />
-              </View>
-            ) : null
-          }
+          ListFooterComponent={listFooter}
           ItemSeparatorComponent={ListSeparator}
           renderItem={renderItem}
         />

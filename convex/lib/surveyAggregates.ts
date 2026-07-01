@@ -4,10 +4,10 @@
  * Buckets: surveyor, municipality, district, ward (when wardNo set).
  * Updated on survey insert/patch/delete via syncSurveyAggregates().
  */
-import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { fieldSurveyAccess } from "../fieldAccess";
-import { resolveTenantScope, tenantMunicipalityIds } from "../tenancy";
+import type { Doc, Id } from '../_generated/dataModel';
+import type { MutationCtx, QueryCtx } from '../_generated/server';
+import { fieldSurveyAccess } from '../fieldAccess';
+import { resolveTenantScope, tenantMunicipalityIds } from '../tenancy';
 
 export type SurveyCounterSlice = {
   total: number;
@@ -37,12 +37,12 @@ export function emptyCounters(): SurveyCounterSlice {
 }
 
 /** Classify a survey row into counter buckets (matches masters.dashboardCounts logic). */
-export function classifySurveyCounters(survey: Doc<"surveys">): SurveyCounterSlice {
-  const drafts = survey.status === "draft" ? 1 : 0;
-  const submitted = survey.status === "submitted" ? 1 : 0;
-  const pending = survey.qcStatus === "pending" && survey.status === "submitted" ? 1 : 0;
-  const approved = survey.qcStatus === "approved" ? 1 : 0;
-  const rejected = survey.qcStatus === "rejected" ? 1 : 0;
+export function classifySurveyCounters(survey: Doc<'surveys'>): SurveyCounterSlice {
+  const drafts = survey.status === 'draft' ? 1 : 0;
+  const submitted = survey.status === 'submitted' ? 1 : 0;
+  const pending = survey.qcStatus === 'pending' && survey.status === 'submitted' ? 1 : 0;
+  const approved = survey.qcStatus === 'approved' ? 1 : 0;
+  const rejected = survey.qcStatus === 'rejected' ? 1 : 0;
   return { total: 1, drafts, submitted, pending, approved, rejected };
 }
 
@@ -68,7 +68,7 @@ export function addCounters(a: SurveyCounterSlice, b: SurveyCounterSlice): Surve
   };
 }
 
-export function bucketKeysForSurvey(survey: Doc<"surveys">): string[] {
+export function bucketKeysForSurvey(survey: Doc<'surveys'>): string[] {
   const keys = [
     `surveyor:${survey.surveyorId}`,
     `municipality:${survey.municipalityId}`,
@@ -82,20 +82,20 @@ export function bucketKeysForSurvey(survey: Doc<"surveys">): string[] {
 function dateKeyFromMs(ms: number): string {
   const d = new Date(ms);
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
 async function getOrCreateBucket(ctx: MutationCtx, bucketKey: string) {
   const existing = await ctx.db
-    .query("surveyAggregateBuckets")
-    .withIndex("by_bucketKey", (q) => q.eq("bucketKey", bucketKey))
+    .query('surveyAggregateBuckets')
+    .withIndex('by_bucketKey', (q) => q.eq('bucketKey', bucketKey))
     .unique();
   if (existing) return existing;
-  const id = await ctx.db.insert("surveyAggregateBuckets", { bucketKey, ...ZERO });
+  const id = await ctx.db.insert('surveyAggregateBuckets', { bucketKey, ...ZERO });
   const row = await ctx.db.get(id);
-  if (!row) throw new Error("Failed to create aggregate bucket");
+  if (!row) throw new Error('Failed to create aggregate bucket');
   return row;
 }
 
@@ -125,33 +125,33 @@ async function applyDailyDelta(
   ctx: MutationCtx,
   bucketKey: string,
   dateKey: string,
-  field: "created" | "submitted",
+  field: 'created' | 'submitted',
   delta: number,
 ) {
   if (delta === 0) return;
   const existing = await ctx.db
-    .query("surveyDailyRollups")
-    .withIndex("by_bucket_date", (q) => q.eq("bucketKey", bucketKey).eq("dateKey", dateKey))
+    .query('surveyDailyRollups')
+    .withIndex('by_bucket_date', (q) => q.eq('bucketKey', bucketKey).eq('dateKey', dateKey))
     .unique();
   if (existing) {
     await ctx.db.patch(existing._id, { [field]: Math.max(0, existing[field] + delta) });
     return;
   }
-  await ctx.db.insert("surveyDailyRollups", {
+  await ctx.db.insert('surveyDailyRollups', {
     bucketKey,
     dateKey,
-    created: field === "created" ? Math.max(0, delta) : 0,
-    submitted: field === "submitted" ? Math.max(0, delta) : 0,
+    created: field === 'created' ? Math.max(0, delta) : 0,
+    submitted: field === 'submitted' ? Math.max(0, delta) : 0,
   });
 }
 
-function dailyDeltasForSurvey(survey: Doc<"surveys">, sign: 1 | -1) {
+function dailyDeltasForSurvey(survey: Doc<'surveys'>, sign: 1 | -1) {
   const createdDate = dateKeyFromMs(survey._creationTime);
   const submittedDate = survey.submittedAt !== undefined ? dateKeyFromMs(survey.submittedAt) : null;
   return { createdDate, submittedDate, sign };
 }
 
-async function applySurveyToBuckets(ctx: MutationCtx, survey: Doc<"surveys">, sign: 1 | -1) {
+async function applySurveyToBuckets(ctx: MutationCtx, survey: Doc<'surveys'>, sign: 1 | -1) {
   const counters = classifySurveyCounters(survey);
   const delta: SurveyCounterSlice = {
     total: counters.total * sign,
@@ -166,17 +166,17 @@ async function applySurveyToBuckets(ctx: MutationCtx, survey: Doc<"surveys">, si
 
   const { createdDate, submittedDate, sign: s } = dailyDeltasForSurvey(survey, sign);
   const createdDelta = s;
-  await Promise.all(keys.map((key) => applyDailyDelta(ctx, key, createdDate, "created", createdDelta)));
-  if (submittedDate && survey.status === "submitted") {
-    await Promise.all(keys.map((key) => applyDailyDelta(ctx, key, submittedDate, "submitted", s)));
+  await Promise.all(keys.map((key) => applyDailyDelta(ctx, key, createdDate, 'created', createdDelta)));
+  if (submittedDate && survey.status === 'submitted') {
+    await Promise.all(keys.map((key) => applyDailyDelta(ctx, key, submittedDate, 'submitted', s)));
   }
 }
 
 /** Call after survey insert, patch, or delete. */
 export async function syncSurveyAggregates(
   ctx: MutationCtx,
-  before: Doc<"surveys"> | null,
-  after: Doc<"surveys"> | null,
+  before: Doc<'surveys'> | null,
+  after: Doc<'surveys'> | null,
 ) {
   if (before && after && before._id === after._id) {
     const oldKeys = new Set(bucketKeysForSurvey(before));
@@ -193,8 +193,8 @@ export async function syncSurveyAggregates(
 
 async function readBucket(ctx: QueryCtx, bucketKey: string): Promise<SurveyCounterSlice> {
   const row = await ctx.db
-    .query("surveyAggregateBuckets")
-    .withIndex("by_bucketKey", (q) => q.eq("bucketKey", bucketKey))
+    .query('surveyAggregateBuckets')
+    .withIndex('by_bucketKey', (q) => q.eq('bucketKey', bucketKey))
     .unique();
   return row
     ? {
@@ -209,11 +209,8 @@ async function readBucket(ctx: QueryCtx, bucketKey: string): Promise<SurveyCount
 }
 
 async function sumBuckets(ctx: QueryCtx, keys: string[]): Promise<SurveyCounterSlice> {
-  let acc = emptyCounters();
-  for (const key of keys) {
-    acc = addCounters(acc, await readBucket(ctx, key));
-  }
-  return acc;
+  const slices = await Promise.all(keys.map((key) => readBucket(ctx, key)));
+  return slices.reduce((acc, slice) => addCounters(acc, slice), emptyCounters());
 }
 
 export async function sumDailyForDate(
@@ -221,13 +218,17 @@ export async function sumDailyForDate(
   keys: string[],
   dateKey: string,
 ): Promise<{ created: number; submitted: number }> {
+  const rows = await Promise.all(
+    keys.map((key) =>
+      ctx.db
+        .query('surveyDailyRollups')
+        .withIndex('by_bucket_date', (q) => q.eq('bucketKey', key).eq('dateKey', dateKey))
+        .unique(),
+    ),
+  );
   let created = 0;
   let submitted = 0;
-  for (const key of keys) {
-    const row = await ctx.db
-      .query("surveyDailyRollups")
-      .withIndex("by_bucket_date", (q) => q.eq("bucketKey", key).eq("dateKey", dateKey))
-      .unique();
+  for (const row of rows) {
     if (row) {
       created += row.created;
       submitted += row.submitted;
@@ -245,17 +246,17 @@ function todayDateKey(nowMs: number): string {
 /** Resolve bucket keys visible to the caller for dashboard-style aggregates. */
 export async function bucketKeysForUserScope(
   ctx: QueryCtx,
-  me: Doc<"users">,
+  me: Doc<'users'>,
   scope: Awaited<ReturnType<typeof resolveTenantScope>>,
   access: Awaited<ReturnType<typeof fieldSurveyAccess>>,
 ): Promise<string[]> {
-  if (access === "none") return [];
-  if (access === "own") return [`surveyor:${me._id}`];
+  if (access === 'none') return [];
+  if (access === 'own') return [`surveyor:${me._id}`];
 
   const muniIdSet = tenantMunicipalityIds(scope);
   const muniIds = scope.municipalities.length > 0 ? scope.municipalities.map((m) => m._id) : [...muniIdSet];
 
-  if (access === "admin" || access === "assigned") {
+  if (access === 'admin' || access === 'assigned') {
     if (muniIds.length > 0) {
       return muniIds.map((id) => `municipality:${id}`);
     }
@@ -265,7 +266,7 @@ export async function bucketKeysForUserScope(
 }
 export async function readDashboardCountsFromAggregates(
   ctx: QueryCtx,
-  me: Doc<"users">,
+  me: Doc<'users'>,
   nowMs: number,
 ): Promise<DashboardCountsFromAggregates> {
   const [access, scope] = await Promise.all([fieldSurveyAccess(ctx, me), resolveTenantScope(ctx, me)]);
@@ -305,11 +306,15 @@ export async function readDailyTrendFromAggregates(
     buckets.set(dateKeyFromMs(d.getTime()), { created: 0, submitted: 0 });
   }
 
-  for (const key of keys) {
-    const rows = await ctx.db
-      .query("surveyDailyRollups")
-      .withIndex("by_bucketKey", (q) => q.eq("bucketKey", key))
-      .collect();
+  const allRowsByKey = await Promise.all(
+    keys.map((key) =>
+      ctx.db
+        .query('surveyDailyRollups')
+        .withIndex('by_bucketKey', (q) => q.eq('bucketKey', key))
+        .collect(),
+    ),
+  );
+  for (const rows of allRowsByKey) {
     for (const row of rows) {
       const b = buckets.get(row.dateKey);
       if (b) {
@@ -330,37 +335,37 @@ export async function readDailyTrendFromAggregates(
 
 export async function readWardCoverageFromAggregates(
   ctx: QueryCtx,
-  municipalityIds: Id<"municipalities">[],
+  municipalityIds: Id<'municipalities'>[],
 ): Promise<
   Array<{
-    municipalityId: Id<"municipalities">;
+    municipalityId: Id<'municipalities'>;
     wardNo: string;
     total: number;
     approved: number;
   }>
 > {
-  const results: Array<{
-    municipalityId: Id<"municipalities">;
-    wardNo: string;
-    total: number;
-    approved: number;
-  }> = [];
-
-  for (const muniId of municipalityIds) {
-    const wards = await ctx.db
-      .query("wards")
-      .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", muniId))
-      .collect();
-    for (const ward of wards) {
-      const bucket = await readBucket(ctx, `ward:${muniId}:${ward.wardNo}`);
-      if (bucket.total === 0) continue;
-      results.push({
-        municipalityId: muniId,
-        wardNo: ward.wardNo,
-        total: bucket.total,
-        approved: bucket.approved,
-      });
-    }
-  }
-  return results.sort((a, b) => b.total - a.total);
+  const muniWardBuckets = await Promise.all(
+    municipalityIds.map(async (muniId) => {
+      const wards = await ctx.db
+        .query('wards')
+        .withIndex('by_municipality_ward', (q) => q.eq('municipalityId', muniId))
+        .collect();
+      return Promise.all(
+        wards.map(async (ward) => {
+          const bucket = await readBucket(ctx, `ward:${muniId}:${ward.wardNo}`);
+          if (bucket.total === 0) return null;
+          return {
+            municipalityId: muniId,
+            wardNo: ward.wardNo,
+            total: bucket.total,
+            approved: bucket.approved,
+          };
+        }),
+      );
+    }),
+  );
+  return muniWardBuckets
+    .flat()
+    .filter((row): row is NonNullable<typeof row> => row !== null)
+    .sort((a, b) => b.total - a.total);
 }

@@ -4,6 +4,7 @@
  */
 import { AppLoadingView } from '@/components/app-loading-view';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useCurrentUserContext } from '@/providers/current-user-provider';
 import { Redirect } from 'expo-router';
 import { ReactNode } from 'react';
 
@@ -11,8 +12,9 @@ type GuardMode = 'app' | 'admin';
 
 export function LayoutGuard({ mode, children }: { mode: GuardMode; children: ReactNode }) {
   const { user, role, isLoading, isActive } = useCurrentUser();
+  const { bootstrapped } = useCurrentUserContext();
 
-  if (isLoading) {
+  if (isLoading && !bootstrapped) {
     return <AppLoadingView message="Loading…" />;
   }
 

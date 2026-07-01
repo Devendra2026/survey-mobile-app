@@ -73,8 +73,16 @@ export function useWizardPhotoCapture({
   const captureInFlight = useRef(false);
   const pendingRecoveryDone = useRef(false);
   const flushInFlight = useRef(false);
+  const mountedRef = useRef(true);
   const serverSurveyIdRef = useRef(serverSurveyId);
   serverSurveyIdRef.current = serverSurveyId;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const surveyPhotos = filterSurveyPhotos(draft.photos);
   const surveyPhotosRef = useRef(surveyPhotos);
@@ -124,6 +132,7 @@ export function useWizardPhotoCapture({
       let lastError: unknown;
       for (let attempt = 1; attempt <= LINK_RETRY_ATTEMPTS; attempt += 1) {
         try {
+          // react-doctor-disable-next-line react-doctor/async-await-in-loop -- intentional retry backoff
           await withMutationRetry(() => linkPhoto(item));
           return;
         } catch (e) {
@@ -140,8 +149,10 @@ export function useWizardPhotoCapture({
 
   const uploadLocalPhoto = useCallback(
     async (surveyId: Id<'surveys'>, item: QueuedPhotoUpload): Promise<Id<'_storage'>> => {
-      const bytes = await readLocalSurveyPhotoBytes(item.localFilePath);
-      const uploadUrl = await withMutationRetry(() => generateUploadUrl({ surveyId }));
+      const [bytes, uploadUrl] = await Promise.all([
+        readLocalSurveyPhotoBytes(item.localFilePath),
+        withMutationRetry(() => generateUploadUrl({ surveyId })),
+      ]);
       const { storageId } = await withMutationRetry(() => uploadSurveyPhotoBytes(uploadUrl, bytes));
       return storageId;
     },
@@ -211,14 +222,11 @@ export function useWizardPhotoCapture({
       }
 
       if (flushInFlight.current) {
-        if (!options?.waitForInFlight) {
-          return {
-            stillPending: photosStillPendingCloudSync() || (await hasPendingPhotoUploads(localId)),
-          };
+        if (options?.waitForInFlight) {
+          await new Promise<void>((resolve) => {
+            flushWaiters.current.push(resolve);
+          });
         }
-        await new Promise<void>((resolve) => {
-          flushWaiters.current.push(resolve);
-        });
         if (flushInFlight.current) {
           return {
             stillPending: photosStillPendingCloudSync() || (await hasPendingPhotoUploads(localId)),
@@ -231,12 +239,11 @@ export function useWizardPhotoCapture({
         const queue = await readPhotoUploadQueue();
         const pending = queue.filter((e) => e.localId === localId);
 
-        for (const item of pending) {
-          try {
-            await processQueueItem(item, sid);
-          } catch {
-            // leave in queue for retry
-          }
+        const batchSize = 2;
+        for (let i = 0; i < pending.length; i += batchSize) {
+          if (!mountedRef.current) break;
+          const batch = pending.slice(i, i + batchSize);
+          await Promise.allSettled(batch.map((item) => processQueueItem(item, sid)));
         }
       } finally {
         flushInFlight.current = false;
@@ -254,13 +261,16 @@ export function useWizardPhotoCapture({
 
   const releasePhoto = useCallback(
     async (photo: WizardPhotoEntry) => {
-      await deleteLocalSurveyPhoto(photo.localUri);
-      if (serverSurveyId && (photo.slot === 'front' || photo.slot === 'side')) {
+      const isLinkedSurveySlot = serverSurveyId && (photo.slot === 'front' || photo.slot === 'side');
+
+      if (isLinkedSurveySlot) {
+        if (photo.localUri) await deleteLocalSurveyPhoto(photo.localUri);
         if (photo.storageId) {
           await removeBySurveySlot({ surveyId: serverSurveyId, slot: photo.slot });
         }
         return;
       }
+      if (photo.localUri) await deleteLocalSurveyPhoto(photo.localUri);
       if (photo.storageId) {
         await releaseStorage({ storageId: photo.storageId });
       }
@@ -397,10 +407,9 @@ export function useWizardPhotoCapture({
       if (!existing) return;
       await releasePhoto(existing);
       await dequeuePhotoUpload(localId, slot);
-      await refreshPendingLinkCount();
       const next = filterSurveyPhotos(surveyPhotosRef.current).filter((p) => p.slot !== slot);
       surveyPhotosRef.current = next;
-      await update({ photos: next });
+      await Promise.all([refreshPendingLinkCount(), update({ photos: next })]);
       setPreviewBySlot((prev) => {
         const next = { ...prev };
         delete next[slot];

@@ -50,6 +50,7 @@ export function SurveyPhotoGrid({ photos, canRetake = false }: { photos: SurveyP
                   source={{ uri: p.url }}
                   style={{ width: '100%', height: 144 }}
                   contentFit="cover"
+                  cachePolicy="memory-disk"
                   recyclingKey={p.url}
                 />
               ) : (

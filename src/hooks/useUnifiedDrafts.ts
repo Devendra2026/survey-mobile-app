@@ -5,6 +5,7 @@
 import { api } from '@/convex/_generated/api';
 import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
 import { clearDraft, draftCompletionPct, listDrafts, type WizardDraft } from '@/hooks/useWizardDraft';
+import { useCurrentUserContext } from '@/providers/current-user-provider';
 import {
   isStaleLinkedLocalDraft,
   mergeDraftLists,
@@ -14,7 +15,7 @@ import {
 } from '@/utils/unifiedDraftMerge';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuery } from 'convex/react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 export type { UnifiedDraftItem };
 
@@ -45,13 +46,15 @@ export async function purgeStaleLocalDrafts(
   serverDrafts: ServerDraftRow[],
 ): Promise<WizardDraft[]> {
   const kept: WizardDraft[] = [];
+  const staleClearTasks: Promise<void>[] = [];
   for (const d of local) {
     if (isStaleLinkedLocalDraft(toLocalDraftRow(d), serverDrafts)) {
-      await clearDraft(d.localId);
-      continue;
+      staleClearTasks.push(clearDraft(d.localId));
+    } else {
+      kept.push(d);
     }
-    kept.push(d);
   }
+  await Promise.all(staleClearTasks);
   return kept;
 }
 
@@ -62,8 +65,9 @@ const FOCUS_DEBOUNCE_MS = 300;
 export function useUnifiedDrafts(options: UseUnifiedDraftsOptions = {}) {
   const { enabled = true, serverLimit = 100 } = options;
   const { convexReady } = useClerkConvexAuth();
+  const { me } = useCurrentUserContext();
   const [localDrafts, setLocalDrafts] = useState<WizardDraft[]>([]);
-  const me = useQuery(api.users.currentUser, convexReady && enabled ? {} : 'skip');
+  const knownLocalIdsRef = useRef<Set<string>>(new Set());
 
   const serverDrafts = useQuery(
     api.survey.list,
@@ -74,6 +78,9 @@ export function useUnifiedDrafts(options: UseUnifiedDraftsOptions = {}) {
 
   const refreshLocal = useCallback(async () => {
     const allLocal = await listDrafts();
+    for (const d of allLocal) {
+      knownLocalIdsRef.current.add(d.localId);
+    }
     if (serverDrafts === undefined) {
       setLocalDrafts(allLocal);
       return;

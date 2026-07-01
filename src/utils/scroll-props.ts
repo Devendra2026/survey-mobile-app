@@ -1,3 +1,4 @@
+import type { FlashListProps } from '@shopify/flash-list';
 import { Platform, type FlatListProps, type KeyboardAvoidingViewProps, type ScrollViewProps } from 'react-native';
 
 export const scrollViewProps: Pick<
@@ -64,6 +65,21 @@ export const flatListProps: Pick<
   maxToRenderPerBatch: 8,
   windowSize: 7,
   removeClippedSubviews: Platform.OS === 'android',
+};
+
+export const flashListProps: Pick<
+  FlashListProps<unknown>,
+  | 'keyboardShouldPersistTaps'
+  | 'nestedScrollEnabled'
+  | 'showsVerticalScrollIndicator'
+  | 'overScrollMode'
+  | 'drawDistance'
+> = {
+  keyboardShouldPersistTaps: 'handled',
+  nestedScrollEnabled: true,
+  showsVerticalScrollIndicator: true,
+  overScrollMode: 'always',
+  drawDistance: 250,
 };
 
 export function keyboardAvoidingProps(

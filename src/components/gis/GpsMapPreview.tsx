@@ -3,7 +3,7 @@ import { canRenderNativeMap, mapsPreviewUnavailableMessage } from '@/config/maps
 import type { GpsCaptureInput } from '@/convex/lib/gpsValidation';
 import { formatGpsDisplay } from '@/utils/formatGps';
 import { isExpoGo } from '@/utils/gpsPolicy';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, Text, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 
@@ -26,10 +26,16 @@ function regionForCoordinate(coordinate: Pick<GpsCaptureInput, 'latitude' | 'lon
 
 function GpsMapPreviewInner({ coordinate, interactive = true, height = 220 }: GpsMapPreviewProps) {
   const mapRef = useRef<MapView>(null);
+  const [deferMap, setDeferMap] = useState(false);
   const { latitude, longitude, capturedAt } = coordinate;
   const region = useMemo(() => regionForCoordinate({ latitude, longitude }), [latitude, longitude]);
   const showMap = canRenderNativeMap();
   const useGoogleProvider = !isExpoGo() && Platform.OS === 'android';
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setDeferMap(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     mapRef.current?.animateToRegion(region, 300);
@@ -55,6 +61,10 @@ function GpsMapPreviewInner({ coordinate, interactive = true, height = 220 }: Gp
         </Text>
       </View>
     );
+  }
+
+  if (!deferMap) {
+    return <View style={{ height, borderRadius: 12, overflow: 'hidden', backgroundColor: '#E5E7EB' }} />;
   }
 
   return (

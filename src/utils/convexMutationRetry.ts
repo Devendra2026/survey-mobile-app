@@ -23,6 +23,7 @@ export async function withMutationRetry<T>(fn: () => Promise<T>, opts?: { attemp
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- intentional retry backoff
       return await fn();
     } catch (err) {
       lastError = err;

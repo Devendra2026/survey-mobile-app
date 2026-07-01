@@ -8,11 +8,12 @@ import type { Id } from '@/convex/_generated/dataModel';
 import { useConvexReadyQuery } from '@/hooks/use-convex-ready-query';
 import { toUserMessage } from '@/utils/errors';
 import { timeAgo } from '@/utils/format';
+import { flatListProps } from '@/utils/scroll-props';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
 type ApprovalItem = FunctionReturnType<typeof api.admin.listPendingApprovals>[number];
@@ -25,7 +26,7 @@ const ListHeader = () => (
   </Text>
 );
 
-function ApprovalRow({
+const ApprovalRow = memo(function ApprovalRow({
   item,
   busyId,
   onOpenDetail,
@@ -95,7 +96,7 @@ function ApprovalRow({
       </View>
     </Pressable>
   );
-}
+});
 
 export default function ApprovalsScreen() {
   const router = useRouter();
@@ -193,7 +194,9 @@ export default function ApprovalsScreen() {
         <FlatList
           data={pending}
           keyExtractor={(item) => item._id}
+          extraData={busyId}
           contentContainerStyle={{ padding: 14, paddingBottom: 24 }}
+          {...flatListProps}
           refreshControl={refreshControl}
           ItemSeparatorComponent={ListSeparator}
           ListHeaderComponent={ListHeader}

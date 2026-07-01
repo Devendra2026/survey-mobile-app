@@ -15,7 +15,7 @@ import { memo, useCallback, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-type RemarkItem = FunctionReturnType<typeof api.qc.listRemarks>[number];
+type RemarkItem = NonNullable<FunctionReturnType<typeof api.survey.get>>['qcRemarks'][number];
 
 const RemarkRow = memo(function RemarkRow({
   item,
@@ -53,7 +53,7 @@ export default function QcConversationScreen() {
   const surveyId = params.id as Id<'surveys'> | undefined;
 
   const survey = useQuery(api.survey.get, surveyId ? { id: surveyId } : 'skip');
-  const remarks = useQuery(api.qc.listRemarks, surveyId ? { surveyId } : 'skip');
+  const remarks = survey?.qcRemarks ?? [];
   const addRemark = useMutation(api.qc.addRemark);
   const resolveRemark = useMutation(api.qc.resolveRemark);
 
@@ -81,7 +81,7 @@ export default function QcConversationScreen() {
     );
   }
 
-  if (survey === undefined || remarks === undefined) {
+  if (survey === undefined) {
     return <Spinner label="Loading conversation…" />;
   }
 

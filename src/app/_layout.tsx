@@ -9,12 +9,16 @@ import { RootErrorBoundary } from '@/components/root-error-boundary';
 import { env, envReady } from '@/config/env';
 import { bootScreenStyle } from '@/constants/brand';
 import { useAuthForConvex } from '@/hooks/use-auth-for-convex';
-import { useAppStateSessionRefresh, useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
 import { useHideAppSplash } from '@/hooks/use-hide-app-splash';
 import { useSafeRouter } from '@/hooks/use-safe-router';
-import { useSessionBootstrap } from '@/hooks/use-session-bootstrap';
-import { useSyncConvexUser } from '@/hooks/use-sync-convex-user';
 import { initMobileMonitoring } from '@/lib/perf-monitor';
+import {
+  ClerkConvexAuthProvider,
+  useAppStateSessionRefresh,
+  useClerkConvexAuth,
+  type ConvexAuthPhase,
+} from '@/providers/clerk-convex-auth-provider';
+import { CurrentUserProvider, useCurrentUserContext } from '@/providers/current-user-provider';
 import { ThemeProvider } from '@/theme';
 import { clearClerkClientJwtCache, tokenCache } from '@/utils/tokenCache';
 import { ClerkProvider, useAuth } from '@clerk/expo';
@@ -33,10 +37,8 @@ initMobileMonitoring();
 
 const CLERK_LOAD_TIMEOUT_MS = 45_000;
 
-/* ────────────────────────── Auth gate ────────────────────────── */
-
 function signedInLoadingMessage(
-  convexAuthPhase: ReturnType<typeof useClerkConvexAuth>['convexAuthPhase'],
+  convexAuthPhase: ConvexAuthPhase,
   convexReady: boolean,
   me: unknown,
   needsSync: boolean,
@@ -51,19 +53,130 @@ function signedInLoadingMessage(
   return 'Please wait…';
 }
 
+/** Signed-out routing — no Convex WebSocket until user signs in. */
+function SignedOutAuthGate() {
+  const { isSignedIn, isLoaded } = useAuth();
+  const { replace, segments, navigationReady } = useSafeRouter();
+  const lastNavTargetRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded || !navigationReady || isSignedIn) return;
+    const inAuthGroup = segments[0] === '(auth)';
+    if (!inAuthGroup) {
+      const target = '/(auth)/sign-in';
+      if (target !== lastNavTargetRef.current) {
+        lastNavTargetRef.current = target;
+        replace(target);
+      }
+    } else {
+      lastNavTargetRef.current = null;
+    }
+  }, [isLoaded, navigationReady, isSignedIn, segments, replace]);
+
+  return <Slot />;
+}
+
+function SignedInAuthGate() {
+  const { convexReady, convexAuthFailed, convexAuthPhase } = useClerkConvexAuth();
+  useAppStateSessionRefresh();
+  const { me, needsSync, syncing, syncError, profileResolved } = useCurrentUserContext();
+  const { replace, segments, navigationReady } = useSafeRouter();
+  const lastNavTargetRef = useRef<string | null>(null);
+  const bootstrappedRef = useRef(false);
+
+  const sessionPending = convexAuthPhase === 'connecting' || convexAuthPhase === 'recovering';
+  const profilePending = convexReady && !profileResolved;
+  const setupPending = convexReady && needsSync && syncing;
+  const accountReady = me !== null || !needsSync;
+
+  if (convexReady && profileResolved && accountReady && !setupPending) {
+    bootstrappedRef.current = true;
+  }
+
+  const showBlockingOverlay =
+    !bootstrappedRef.current && (sessionPending || !convexReady || profilePending || setupPending);
+
+  useEffect(() => {
+    if (!navigationReady) return;
+    if (!convexReady || !profileResolved || me === undefined) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+    const inAdminGroup = segments[0] === '(admin)';
+    const inAppGroup = segments[0] === '(app)';
+
+    let target: string | null = null;
+
+    if (me === null) {
+      if (segments[0] !== '(auth)' || segments[1] !== 'setup') {
+        target = '/(auth)/setup';
+      }
+    } else if (me.status !== 'active' || me.role === 'pending') {
+      if (segments[0] !== '(auth)' || segments[1] !== 'awaiting-approval') {
+        target = '/(auth)/awaiting-approval';
+      }
+    } else if (me.role === 'admin') {
+      if (!inAdminGroup && !inAppGroup) target = '/(admin)/approvals';
+    } else if (me.role === 'qc_supervisor' || me.role === 'surveyor' || me.role === 'supervisor') {
+      if (!inAppGroup) target = '/dashboard';
+    }
+
+    if (target && target !== lastNavTargetRef.current) {
+      lastNavTargetRef.current = target;
+      replace(target);
+    } else if (!target) {
+      lastNavTargetRef.current = null;
+    }
+  }, [navigationReady, convexReady, profileResolved, me, segments, replace]);
+
+  const loadingMessage = useMemo(() => {
+    if (syncError && segments[0] === '(auth)' && segments[1] === 'setup') {
+      return syncError;
+    }
+    return signedInLoadingMessage(convexAuthPhase, convexReady, me, needsSync, syncing);
+  }, [convexAuthPhase, convexReady, me, needsSync, syncing, syncError, segments]);
+
+  if (convexAuthFailed) {
+    return <ConvexAuthError />;
+  }
+
+  return (
+    <View className="flex-1">
+      <Slot />
+      {showBlockingOverlay ? (
+        <View className="absolute inset-0 z-10" pointerEvents="auto">
+          <AppLoadingView message={loadingMessage} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function ConvexSignedInTree({ client }: { client: ConvexReactClient }) {
+  return (
+    <ConvexProviderWithAuth client={client} useAuth={useAuthForConvex}>
+      <ClerkConvexAuthProvider>
+        <CurrentUserProvider>
+          <SignedInAuthGate />
+        </CurrentUserProvider>
+      </ClerkConvexAuthProvider>
+    </ConvexProviderWithAuth>
+  );
+}
+
 /**
  * Convex mounts only after Clerk has loaded so startup work does not block clerk-js FAPI.
+ * Signed-out users get Theme + routes without opening a WebSocket.
  * @see https://github.com/clerk/javascript/issues/8245
  */
-function ClerkThenConvex({ onClerkRetry }: { onClerkRetry: () => void }) {
-  const { isLoaded } = useAuth();
+function ClerkAppShell({ onClerkRetry }: { onClerkRetry: () => void }) {
+  const { isLoaded, isSignedIn } = useAuth();
   const [loadTimedOut, setLoadTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
-  const convex = useMemo(() => {
-    if (!isLoaded || !envReady) return null;
+  const convexClient = useMemo(() => {
+    if (!isLoaded || !envReady || !isSignedIn) return null;
     return new ConvexReactClient(env.convexUrl, { unsavedChangesWarning: false });
-  }, [isLoaded]);
+  }, [isLoaded, isSignedIn]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -90,97 +203,13 @@ function ClerkThenConvex({ onClerkRetry }: { onClerkRetry: () => void }) {
     return <AppLoadingView message="Loading sign-in…" />;
   }
 
-  if (!convex) {
-    return <AppLoadingView message="Connecting to server…" />;
-  }
-
   return (
-    <ConvexProviderWithAuth client={convex} useAuth={useAuthForConvex}>
-      <ThemeProvider>
-        <StatusBar style="auto" />
-        <AuthGate />
-      </ThemeProvider>
-    </ConvexProviderWithAuth>
+    <ThemeProvider>
+      <StatusBar style="auto" />
+      {isSignedIn && convexClient ? <ConvexSignedInTree client={convexClient} /> : <SignedOutAuthGate />}
+    </ThemeProvider>
   );
 }
-
-/**
- * AuthGate route map (expo-router groups):
- * - (auth): sign-in, sign-up, forgot-password, setup, awaiting-approval
- * - (app): surveyor / supervisor / qc_supervisor — dashboard, surveys, wizard, QC
- * - (admin): admin-only tabs — approvals, users, reports, tenants, masters
- *
- * Server-side Convex functions are the authoritative access boundary; this gate
- * only steers navigation for signed-in users with an active profile.
- */
-function AuthGate() {
-  const { isSignedIn, isLoaded } = useAuth();
-  const { convexReady, convexAuthFailed, convexAuthPhase } = useClerkConvexAuth();
-  useAppStateSessionRefresh();
-  const { me, needsSync, syncing, error: syncError } = useSyncConvexUser();
-  const { showBlockingOverlay } = useSessionBootstrap(me, needsSync, syncing);
-  const { replace, segments, navigationReady } = useSafeRouter();
-  const lastNavTargetRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!isLoaded || !navigationReady) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-    const inAdminGroup = segments[0] === '(admin)';
-    const inAppGroup = segments[0] === '(app)';
-
-    let target: string | null = null;
-
-    if (!isSignedIn) {
-      if (!inAuthGroup) target = '/(auth)/sign-in';
-    } else if (!convexReady || me === undefined) {
-      return;
-    } else if (me === null) {
-      if (segments[0] !== '(auth)' || segments[1] !== 'setup') {
-        target = '/(auth)/setup';
-      }
-    } else if (me.status !== 'active' || me.role === 'pending') {
-      if (segments[0] !== '(auth)' || segments[1] !== 'awaiting-approval') {
-        target = '/(auth)/awaiting-approval';
-      }
-    } else if (me.role === 'admin') {
-      if (!inAdminGroup && !inAppGroup) target = '/(admin)/approvals';
-    } else if (me.role === 'qc_supervisor' || me.role === 'surveyor' || me.role === 'supervisor') {
-      if (!inAppGroup) target = '/dashboard';
-    }
-
-    if (target && target !== lastNavTargetRef.current) {
-      lastNavTargetRef.current = target;
-      replace(target);
-    } else if (!target) {
-      lastNavTargetRef.current = null;
-    }
-  }, [isLoaded, navigationReady, isSignedIn, convexReady, me, segments, replace]);
-
-  const loadingMessage = useMemo(() => {
-    if (syncError && segments[0] === '(auth)' && segments[1] === 'setup') {
-      return syncError;
-    }
-    return signedInLoadingMessage(convexAuthPhase, convexReady, me, needsSync, syncing);
-  }, [convexAuthPhase, convexReady, me, needsSync, syncing, syncError, segments]);
-
-  if (isSignedIn && convexAuthFailed) {
-    return <ConvexAuthError />;
-  }
-
-  return (
-    <View className="flex-1">
-      <Slot />
-      {showBlockingOverlay ? (
-        <View className="absolute inset-0 z-10" pointerEvents="auto">
-          <AppLoadingView message={loadingMessage} />
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-/* ────────────────────────── Root ────────────────────────── */
 
 function AppProviders() {
   const [clerkRetryKey, setClerkRetryKey] = useState(0);
@@ -200,7 +229,7 @@ function AppProviders() {
       tokenCache={tokenCache}
       __experimental_resourceCache={resourceCache}
     >
-      <ClerkThenConvex onClerkRetry={handleClerkRetry} />
+      <ClerkAppShell onClerkRetry={handleClerkRetry} />
     </ClerkProvider>
   );
 }

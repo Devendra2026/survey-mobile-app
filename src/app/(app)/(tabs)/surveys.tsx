@@ -4,14 +4,16 @@
  */
 import { AppButton, EmptyState, ListSkeleton, SurveyCard } from '@/components';
 import { api } from '@/convex/_generated/api';
-import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { surveyOwnerListLabel } from '@/utils/format';
-import { flatListProps } from '@/utils/scroll-props';
+import { flashListProps } from '@/utils/scroll-props';
 import { TabScreenBottomSpacer } from '@/utils/ui-layout';
-import { usePaginatedQuery, useQuery } from 'convex/react';
+import type { ListRenderItemInfo } from '@shopify/flash-list';
+import { FlashList } from '@shopify/flash-list';
+import { usePaginatedQuery } from 'convex/react';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, type ListRenderItemInfo, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type StatusFilter = 'all' | 'draft' | 'submitted' | 'approved' | 'rejected';
@@ -30,8 +32,7 @@ const ListSeparator = () => <View className="h-2" />;
 
 export default function SurveysScreen() {
   const router = useRouter();
-  const { convexReady } = useClerkConvexAuth();
-  const me = useQuery(api.users.currentUser, convexReady ? {} : 'skip');
+  const { user: me } = useCurrentUser();
   const [filter, setFilter] = useState<StatusFilter>('all');
 
   const queryArgs = useMemo(
@@ -167,11 +168,11 @@ export default function SurveysScreen() {
           />
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={sortedResults}
           keyExtractor={keyExtractor}
           contentContainerStyle={{ padding: 14 }}
-          {...flatListProps}
+          {...flashListProps}
           ItemSeparatorComponent={ListSeparator}
           onEndReached={() => {
             if (status === 'CanLoadMore') loadMore(PAGE_SIZE);

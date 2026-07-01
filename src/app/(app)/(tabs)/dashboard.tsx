@@ -16,7 +16,7 @@ import {
 } from '@/components';
 import { SurveyStatsBreakdown } from '@/components/admin/survey-stats-breakdown';
 import { api } from '@/convex/_generated/api';
-import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDashboardCounts } from '@/hooks/use-dashboard-counts';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { useUnifiedDrafts } from '@/hooks/useUnifiedDrafts';
@@ -36,10 +36,9 @@ export default function DashboardScreen() {
     markScreenStart('dashboard');
     return performance.now();
   }, []);
-  const { convexReady } = useClerkConvexAuth();
   const counts = useDashboardCounts();
-  const me = useQuery(api.users.currentUser, convexReady ? {} : 'skip');
-  const recent = useQuery(api.survey.list, convexReady ? { limit: 5, sortBy: 'updated' as const } : 'skip');
+  const { user: me } = useCurrentUser();
+  const recent = useQuery(api.survey.list, me ? { limit: 5, sortBy: 'updated' as const } : 'skip');
 
   const { isOnline } = useNetworkStatus();
   const [draftsEnabled, setDraftsEnabled] = useState(false);
@@ -99,7 +98,7 @@ export default function DashboardScreen() {
               <Text className="text-[11px] font-medium text-white">{isOnline ? 'Online' : 'Offline'}</Text>
             </View>
           </View>
-          {me.municipality ? (
+          {me?.municipality ? (
             <Text className="text-caption text-white/75 mt-2">
               {me.municipality.code} · Ward{me.wardAssignments.length === 1 ? ' ' : 's '}
               {me.wardAssignments.join(', ') || '—'}

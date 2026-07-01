@@ -1,3 +1,4 @@
+import { useCurrentUserContext } from '@/providers/current-user-provider';
 import { useAuth } from '@clerk/expo';
 import { useEffect, useRef } from 'react';
 import { useClerkConvexAuth } from './use-clerk-convex-auth';
@@ -9,6 +10,7 @@ import { useClerkConvexAuth } from './use-clerk-convex-auth';
 export function useSessionBootstrap(me: unknown, needsSync: boolean, syncing: boolean) {
   const { isSignedIn } = useAuth();
   const { convexReady, convexAuthPhase } = useClerkConvexAuth();
+  const { bootstrapped: contextBootstrapped } = useCurrentUserContext();
   const bootstrapped = useRef(false);
 
   const sessionPending = convexAuthPhase === 'connecting' || convexAuthPhase === 'recovering';
@@ -26,8 +28,10 @@ export function useSessionBootstrap(me: unknown, needsSync: boolean, syncing: bo
     }
   }, [isSignedIn]);
 
-  const showBlockingOverlay =
-    Boolean(isSignedIn) && !bootstrapped.current && (sessionPending || !convexReady || profilePending || setupPending);
+  const isBootstrapped = bootstrapped.current || contextBootstrapped;
 
-  return { showBlockingOverlay, bootstrapped: bootstrapped.current };
+  const showBlockingOverlay =
+    Boolean(isSignedIn) && !isBootstrapped && (sessionPending || !convexReady || profilePending || setupPending);
+
+  return { showBlockingOverlay, bootstrapped: isBootstrapped };
 }

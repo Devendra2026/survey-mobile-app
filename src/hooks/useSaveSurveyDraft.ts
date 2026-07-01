@@ -102,7 +102,7 @@ export function useSaveSurveyDraft() {
           } else {
             try {
               const keep = new Set(syncedFloorIds);
-              const serverFloors = await convex.query(api.floors.list, { surveyId: sid });
+              const serverFloors = await withMutationRetry(() => convex.query(api.floors.list, { surveyId: sid }));
               const removalPromises: ReturnType<typeof removeFloor>[] = [];
               for (const row of serverFloors) {
                 if (!keep.has(row.clientFloorId)) {
@@ -123,23 +123,24 @@ export function useSaveSurveyDraft() {
             }
           }
 
-          const photoResults = await Promise.allSettled(
-            (draft.photos ?? [])
-              .filter((photo) => photo.storageId)
-              .map((photo) =>
-                withMutationRetry(() =>
-                  linkPhoto({
-                    surveyId: sid,
-                    slot: photo.slot,
-                    storageId: photo.storageId!,
-                    sizeKb: photo.sizeKb,
-                    width: photo.width,
-                    height: photo.height,
-                    capturedAt: photo.capturedAt,
-                  }),
-                ),
+          const linkTasks: Promise<unknown>[] = [];
+          for (const photo of draft.photos ?? []) {
+            if (!photo.storageId) continue;
+            linkTasks.push(
+              withMutationRetry(() =>
+                linkPhoto({
+                  surveyId: sid,
+                  slot: photo.slot,
+                  storageId: photo.storageId!,
+                  sizeKb: photo.sizeKb,
+                  width: photo.width,
+                  height: photo.height,
+                  capturedAt: photo.capturedAt,
+                }),
               ),
-          );
+            );
+          }
+          const photoResults = await Promise.allSettled(linkTasks);
 
           const photoFailed = photoResults.filter((r) => r.status === 'rejected');
           if (photoFailed.length > 0) {

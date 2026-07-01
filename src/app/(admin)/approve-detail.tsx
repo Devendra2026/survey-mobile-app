@@ -23,7 +23,7 @@ import { BottomBarClearance } from '@/utils/ui-layout';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -88,6 +88,13 @@ export default function ApproveDetailScreen() {
 
   const [state, dispatch] = useReducer(approveReducer, initialApproveState);
   const hideToast = useCallback(() => dispatch({ type: 'clearToast' }), []);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current !== null) clearTimeout(navTimerRef.current);
+    };
+  }, []);
 
   const districtOptions = useMemo(
     () => tree?.map((d) => ({ value: d._id, label: `${d.name} (${d.stateName})` })) ?? [],
@@ -153,7 +160,7 @@ export default function ApproveDetailScreen() {
           try {
             await rejectUser({ userId });
             dispatch({ type: 'setToast', toast: { title: 'Request rejected', tone: 'success' } });
-            setTimeout(() => router.back(), 600);
+            navTimerRef.current = setTimeout(() => router.back(), 600);
           } catch (e) {
             dispatch({ type: 'setToast', toast: { title: toUserMessage(e), tone: 'danger' } });
           } finally {
@@ -175,7 +182,7 @@ export default function ApproveDetailScreen() {
         wardAssignments: [],
       });
       dispatch({ type: 'setToast', toast: { title: `${user.name} approved`, tone: 'success' } });
-      setTimeout(() => router.back(), 700);
+      navTimerRef.current = setTimeout(() => router.back(), 700);
     } catch (e) {
       dispatch({ type: 'setToast', toast: { title: toUserMessage(e), tone: 'danger' } });
     } finally {

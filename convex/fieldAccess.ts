@@ -2,23 +2,23 @@
  * Field-role access: surveyor (own), supervisor/QC (assigned), admin (all).
  * Centralises multi-city allotment + ward rules used by survey list, analytics, exports.
  */
-import { ConvexError } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { hasCapability, type PermissionCache } from "./capabilities";
-import { assertCanReadWard, canReadWard } from "./helpers";
-import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
+import { ConvexError } from 'convex/values';
+import type { Doc, Id } from './_generated/dataModel';
+import type { MutationCtx, QueryCtx } from './_generated/server';
+import { hasCapability, type PermissionCache } from './capabilities';
+import { assertCanReadWard, canReadWard } from './helpers';
+import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from './tenancy';
 
-export type FieldSurveyAccess = "own" | "assigned" | "admin" | "none";
+export type FieldSurveyAccess = 'own' | 'assigned' | 'admin' | 'none';
 
 /**
  * True when the user syncs drafts by `localId` under their own `surveyorId`.
  * Intentionally separate from `fieldSurveyAccess` so list visibility (assigned vs
  * own) does not block draft creation for misconfigured or mixed-capability roles.
  */
-export async function isOwnScopeSurveyor(ctx: QueryCtx, user: Doc<"users">, cache?: PermissionCache): Promise<boolean> {
-  if (user.role === "surveyor") return true;
-  return await hasCapability(ctx, user, "surveys.viewOwn", cache);
+export async function isOwnScopeSurveyor(ctx: QueryCtx, user: Doc<'users'>, cache?: PermissionCache): Promise<boolean> {
+  if (user.role === 'surveyor') return true;
+  return await hasCapability(ctx, user, 'surveys.viewOwn', cache);
 }
 
 /**
@@ -27,16 +27,16 @@ export async function isOwnScopeSurveyor(ctx: QueryCtx, user: Doc<"users">, cach
  */
 export async function canInsertSurveyDraft(
   ctx: QueryCtx,
-  user: Doc<"users">,
+  user: Doc<'users'>,
   cache?: PermissionCache,
 ): Promise<boolean> {
   if (await isOwnScopeSurveyor(ctx, user, cache)) return true;
-  if (user.role === "supervisor") return true;
+  if (user.role === 'supervisor') return true;
   const [editDraft, submit, viewAssigned, qcReview] = await Promise.all([
-    hasCapability(ctx, user, "surveys.editDraft", cache),
-    hasCapability(ctx, user, "surveys.submit", cache),
-    hasCapability(ctx, user, "surveys.viewAssigned", cache),
-    hasCapability(ctx, user, "qc.review", cache),
+    hasCapability(ctx, user, 'surveys.editDraft', cache),
+    hasCapability(ctx, user, 'surveys.submit', cache),
+    hasCapability(ctx, user, 'surveys.viewAssigned', cache),
+    hasCapability(ctx, user, 'qc.review', cache),
   ]);
   return editDraft && submit && viewAssigned && !qcReview;
 }
@@ -46,25 +46,25 @@ type SurveyAccessCtx = QueryCtx | MutationCtx;
 /** Enforce municipality scope + field-role access on a single survey read. */
 export async function assertCanAccessSurvey(
   ctx: SurveyAccessCtx,
-  me: Doc<"users">,
-  survey: Doc<"surveys">,
+  me: Doc<'users'>,
+  survey: Doc<'surveys'>,
   cache?: PermissionCache,
 ): Promise<void> {
   await assertMunicipalityInScope(ctx, me, survey.municipalityId);
 
   const access = await fieldSurveyAccess(ctx, me, cache);
-  if (access === "none") {
+  if (access === 'none') {
     throw new ConvexError({
-      code: "FORBIDDEN",
+      code: 'FORBIDDEN',
       message: "You don't have permission to view this survey.",
     });
   }
 
-  if (access === "own") {
+  if (access === 'own') {
     if (survey.surveyorId !== me._id) {
       throw new ConvexError({
-        code: "FORBIDDEN",
-        message: "You can only view your own surveys.",
+        code: 'FORBIDDEN',
+        message: 'You can only view your own surveys.',
       });
     }
     if (survey.wardNo?.trim()) {
@@ -78,75 +78,75 @@ export async function assertCanAccessSurvey(
 
 export async function fieldSurveyAccess(
   ctx: QueryCtx,
-  user: Doc<"users">,
+  user: Doc<'users'>,
   cache?: PermissionCache,
 ): Promise<FieldSurveyAccess> {
-  if (user.role === "admin" || (await hasCapability(ctx, user, "surveys.viewAll", cache))) {
-    return "admin";
+  if (user.role === 'admin' || (await hasCapability(ctx, user, 'surveys.viewAll', cache))) {
+    return 'admin';
   }
   // Surveyors must always resolve to own-scope, even if dynamic role permissions
   // accidentally include broader capabilities.
-  if (user.role === "surveyor") return "own";
+  if (user.role === 'surveyor') return 'own';
   // Assigned / QC scope is broader than own — check it first so dual-capability users
   // (e.g. supervisor profile with leftover viewOwn) still see the full ULB.
   if (
-    (await hasCapability(ctx, user, "surveys.viewAssigned", cache)) ||
-    (await hasCapability(ctx, user, "qc.review", cache))
+    (await hasCapability(ctx, user, 'surveys.viewAssigned', cache)) ||
+    (await hasCapability(ctx, user, 'qc.review', cache))
   ) {
-    return "assigned";
+    return 'assigned';
   }
-  if (await hasCapability(ctx, user, "surveys.viewOwn", cache)) return "own";
-  return "none";
+  if (await hasCapability(ctx, user, 'surveys.viewOwn', cache)) return 'own';
+  return 'none';
 }
 
 type SurveyListQueryArgs = {
-  municipalityId?: Id<"municipalities">;
-  districtId?: Id<"districts">;
-  status?: Doc<"surveys">["status"];
-  surveyorId?: Id<"users">;
+  municipalityId?: Id<'municipalities'>;
+  districtId?: Id<'districts'>;
+  status?: Doc<'surveys'>['status'];
+  surveyorId?: Id<'users'>;
   limit: number;
 };
 
 async function queryByMunicipality(
   ctx: QueryCtx,
-  municipalityId: Id<"municipalities">,
-  status: Doc<"surveys">["status"] | undefined,
+  municipalityId: Id<'municipalities'>,
+  status: Doc<'surveys'>['status'] | undefined,
   take: number,
-): Promise<Doc<"surveys">[]> {
+): Promise<Doc<'surveys'>[]> {
   return ctx.db
-    .query("surveys")
-    .withIndex("by_municipality_status", (q) =>
-      status ? q.eq("municipalityId", municipalityId).eq("status", status) : q.eq("municipalityId", municipalityId),
+    .query('surveys')
+    .withIndex('by_municipality_status', (q) =>
+      status ? q.eq('municipalityId', municipalityId).eq('status', status) : q.eq('municipalityId', municipalityId),
     )
-    .order("desc")
+    .order('desc')
     .take(take);
 }
 
 async function queryByDistrict(
   ctx: QueryCtx,
-  districtId: Id<"districts">,
-  status: Doc<"surveys">["status"] | undefined,
+  districtId: Id<'districts'>,
+  status: Doc<'surveys'>['status'] | undefined,
   take: number,
-): Promise<Doc<"surveys">[]> {
+): Promise<Doc<'surveys'>[]> {
   return ctx.db
-    .query("surveys")
-    .withIndex("by_district_status", (q) =>
-      status ? q.eq("districtId", districtId).eq("status", status) : q.eq("districtId", districtId),
+    .query('surveys')
+    .withIndex('by_district_status', (q) =>
+      status ? q.eq('districtId', districtId).eq('status', status) : q.eq('districtId', districtId),
     )
-    .order("desc")
+    .order('desc')
     .take(take);
 }
 
 /** Ward narrowing is for surveyors and QC supervisors with ward assignments. */
-async function wardLimitsApply(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
-  if (user.role === "admin" || user.role === "supervisor") return false;
-  if (await hasCapability(ctx, user, "surveys.viewAll")) return false;
-  if (user.role === "qc_supervisor") return user.wardAssignments.length > 0;
+async function wardLimitsApply(ctx: QueryCtx, user: Doc<'users'>): Promise<boolean> {
+  if (user.role === 'admin' || user.role === 'supervisor') return false;
+  if (await hasCapability(ctx, user, 'surveys.viewAll')) return false;
+  if (user.role === 'qc_supervisor') return user.wardAssignments.length > 0;
   if (user.wardAssignments.length === 0) return false;
   const [viewAssigned, qcReview, viewOwn] = await Promise.all([
-    hasCapability(ctx, user, "surveys.viewAssigned"),
-    hasCapability(ctx, user, "qc.review"),
-    hasCapability(ctx, user, "surveys.viewOwn"),
+    hasCapability(ctx, user, 'surveys.viewAssigned'),
+    hasCapability(ctx, user, 'qc.review'),
+    hasCapability(ctx, user, 'surveys.viewOwn'),
   ]);
   if (viewAssigned || qcReview) return false;
   return viewOwn;
@@ -154,10 +154,10 @@ async function wardLimitsApply(ctx: QueryCtx, user: Doc<"users">): Promise<boole
 
 async function filterSurveysInScope(
   ctx: QueryCtx,
-  rows: Doc<"surveys">[],
-  me: Doc<"users">,
-  muniIds: Set<Id<"municipalities">>,
-): Promise<Doc<"surveys">[]> {
+  rows: Doc<'surveys'>[],
+  me: Doc<'users'>,
+  muniIds: Set<Id<'municipalities'>>,
+): Promise<Doc<'surveys'>[]> {
   const applyWardLimits = await wardLimitsApply(ctx, me);
   return rows.filter((r) => {
     if (!muniIds.has(r.municipalityId)) return false;
@@ -171,42 +171,54 @@ async function filterSurveysInScope(
 /** Load surveys visible to surveyor / supervisor / QC / admin within tenant scope. */
 export async function querySurveysInFieldScope(
   ctx: QueryCtx,
-  me: Doc<"users">,
+  me: Doc<'users'>,
   args: SurveyListQueryArgs,
-): Promise<Doc<"surveys">[]> {
+): Promise<Doc<'surveys'>[]> {
   const [access, scope] = await Promise.all([fieldSurveyAccess(ctx, me), resolveTenantScope(ctx, me)]);
   const muniIds = tenantMunicipalityIds(scope);
   const districtIds = tenantDistrictIds(scope);
   const take = args.limit * 2;
 
-  if (access === "none") return [];
+  if (access === 'none') return [];
 
-  if (access === "own") {
-    const rows = await ctx.db
-      .query("surveys")
-      .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
-      .order("desc")
-      .take(take);
+  if (access === 'own') {
+    const rows = args.status
+      ? await ctx.db
+          .query('surveys')
+          .withIndex('by_surveyor_status', (q) => q.eq('surveyorId', me._id).eq('status', args.status!))
+          .order('desc')
+          .take(take)
+      : await ctx.db
+          .query('surveys')
+          .withIndex('by_surveyor', (q) => q.eq('surveyorId', me._id))
+          .order('desc')
+          .take(take);
     return (await filterSurveysInScope(ctx, rows, me, muniIds)).slice(0, args.limit);
   }
 
   if (args.surveyorId) {
-    const rows = await ctx.db
-      .query("surveys")
-      .withIndex("by_surveyor", (q) => q.eq("surveyorId", args.surveyorId!))
-      .order("desc")
-      .take(take);
+    const rows = args.status
+      ? await ctx.db
+          .query('surveys')
+          .withIndex('by_surveyor_status', (q) => q.eq('surveyorId', args.surveyorId!).eq('status', args.status!))
+          .order('desc')
+          .take(take)
+      : await ctx.db
+          .query('surveys')
+          .withIndex('by_surveyor', (q) => q.eq('surveyorId', args.surveyorId!))
+          .order('desc')
+          .take(take);
     return (await filterSurveysInScope(ctx, rows, me, muniIds)).slice(0, args.limit);
   }
 
-  if (access === "admin") {
+  if (access === 'admin') {
     if (args.municipalityId) {
       return (await queryByMunicipality(ctx, args.municipalityId, args.status, take)).slice(0, args.limit);
     }
     if (args.districtId) {
       return (await queryByDistrict(ctx, args.districtId, args.status, take)).slice(0, args.limit);
     }
-    const rows = await ctx.db.query("surveys").order("desc").take(take);
+    const rows = await ctx.db.query('surveys').order('desc').take(take);
     return (await filterSurveysInScope(ctx, rows, me, muniIds)).slice(0, args.limit);
   }
 
@@ -219,7 +231,7 @@ export async function querySurveysInFieldScope(
         ? [me.municipalityId]
         : [];
 
-  let rows: Doc<"surveys">[] = [];
+  let rows: Doc<'surveys'>[] = [];
 
   if (scopedMunis.length > 1) {
     const batches = await Promise.all(
@@ -238,12 +250,12 @@ export async function querySurveysInFieldScope(
     const muniId = scopedMunis[0]!;
     rows = args.status
       ? await ctx.db
-          .query("surveys")
-          .withIndex("by_municipality_status", (q) => q.eq("municipalityId", muniId).eq("status", args.status!))
+          .query('surveys')
+          .withIndex('by_municipality_status', (q) => q.eq('municipalityId', muniId).eq('status', args.status!))
           .collect()
       : await ctx.db
-          .query("surveys")
-          .withIndex("by_municipality_status", (q) => q.eq("municipalityId", muniId))
+          .query('surveys')
+          .withIndex('by_municipality_status', (q) => q.eq('municipalityId', muniId))
           .collect();
   } else {
     const districtKey =
@@ -257,33 +269,33 @@ export async function querySurveysInFieldScope(
 }
 
 /** Collect all surveys in assigned/admin scope (analytics dashboards). */
-export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<"users">): Promise<Doc<"surveys">[]> {
+export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<'users'>): Promise<Doc<'surveys'>[]> {
   const [access, scope] = await Promise.all([fieldSurveyAccess(ctx, me), resolveTenantScope(ctx, me)]);
   const muniIds = tenantMunicipalityIds(scope);
 
-  if (access === "none") return [];
+  if (access === 'none') return [];
 
-  if (access === "own") {
+  if (access === 'own') {
     const rows = await ctx.db
-      .query("surveys")
-      .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
+      .query('surveys')
+      .withIndex('by_surveyor', (q) => q.eq('surveyorId', me._id))
       .collect();
     return await filterSurveysInScope(ctx, rows, me, muniIds);
   }
 
-  if (access === "admin") {
+  if (access === 'admin') {
     const scopedMunis = scope.municipalities.length > 0 ? scope.municipalities.map((m) => m._id) : [...muniIds];
     if (scopedMunis.length > 0) {
       const batches = await Promise.all(
         scopedMunis.map((municipalityId) =>
           ctx.db
-            .query("surveys")
-            .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId))
+            .query('surveys')
+            .withIndex('by_municipality_status', (q) => q.eq('municipalityId', municipalityId))
             .collect(),
         ),
       );
       const seen = new Set<string>();
-      const rows: Doc<"surveys">[] = [];
+      const rows: Doc<'surveys'>[] = [];
       for (const batch of batches) {
         for (const row of batch) {
           if (seen.has(row._id)) continue;
@@ -293,8 +305,27 @@ export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<"users">
       }
       return await filterSurveysInScope(ctx, rows, me, muniIds);
     }
-    const rows = await ctx.db.query("surveys").collect();
-    return await filterSurveysInScope(ctx, rows, me, muniIds);
+    if (scope.districts.length > 0) {
+      const batches = await Promise.all(
+        scope.districts.map((district) =>
+          ctx.db
+            .query('surveys')
+            .withIndex('by_district', (q) => q.eq('districtId', district._id))
+            .collect(),
+        ),
+      );
+      const seen = new Set<string>();
+      const rows: Doc<'surveys'>[] = [];
+      for (const batch of batches) {
+        for (const row of batch) {
+          if (seen.has(row._id)) continue;
+          seen.add(row._id);
+          rows.push(row);
+        }
+      }
+      return await filterSurveysInScope(ctx, rows, me, muniIds);
+    }
+    return [];
   }
 
   const scopedMunis =
@@ -304,14 +335,14 @@ export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<"users">
         ? [me.municipalityId]
         : [];
 
-  let rows: Doc<"surveys">[] = [];
+  let rows: Doc<'surveys'>[] = [];
 
   if (scopedMunis.length > 1) {
     const batches = await Promise.all(
       scopedMunis.map((id) =>
         ctx.db
-          .query("surveys")
-          .withIndex("by_municipality_status", (q) => q.eq("municipalityId", id))
+          .query('surveys')
+          .withIndex('by_municipality_status', (q) => q.eq('municipalityId', id))
           .collect(),
       ),
     );
@@ -325,13 +356,13 @@ export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<"users">
     }
   } else if (scopedMunis.length === 1) {
     rows = await ctx.db
-      .query("surveys")
-      .withIndex("by_municipality_status", (q) => q.eq("municipalityId", scopedMunis[0]!))
+      .query('surveys')
+      .withIndex('by_municipality_status', (q) => q.eq('municipalityId', scopedMunis[0]!))
       .collect();
   } else if (scope.districts.length === 1) {
     rows = await ctx.db
-      .query("surveys")
-      .withIndex("by_district", (q) => q.eq("districtId", scope.districts[0]!._id))
+      .query('surveys')
+      .withIndex('by_district', (q) => q.eq('districtId', scope.districts[0]!._id))
       .collect();
   }
 

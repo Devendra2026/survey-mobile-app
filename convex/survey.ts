@@ -21,7 +21,7 @@ import {
   isOwnScopeSurveyor,
   querySurveysInFieldScope,
 } from './fieldAccess';
-import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from './helpers';
+import { assertCanReadWard, canReadWard, clientError, mapTruthyById, requireUser, writeAudit } from './helpers';
 import { validateGps } from './lib/gpsValidation';
 import { syncSurveyAggregates } from './lib/surveyAggregates';
 import {
@@ -407,16 +407,44 @@ export async function collectSurveysForListPaginated(
   let rows: Doc<'surveys'>[] = [];
 
   if (args.qcStatus) {
+    if (args.municipalityId) {
+      rows = await ctx.db
+        .query('surveys')
+        .withIndex('by_municipality_qc_status', (q) =>
+          q.eq('municipalityId', args.municipalityId!).eq('qcStatus', args.qcStatus!),
+        )
+        .collect();
+    } else if (args.districtId) {
+      rows = await ctx.db
+        .query('surveys')
+        .withIndex('by_district_qc_status', (q) => q.eq('districtId', args.districtId!).eq('qcStatus', args.qcStatus!))
+        .collect();
+    } else {
+      rows = await ctx.db
+        .query('surveys')
+        .withIndex('by_qc_status', (q) => q.eq('qcStatus', args.qcStatus!))
+        .collect();
+    }
+  } else if (args.surveyorId && args.status) {
     rows = await ctx.db
       .query('surveys')
-      .withIndex('by_qc_status', (q) => q.eq('qcStatus', args.qcStatus!))
-      .collect();
-  } else if (access === 'own') {
-    rows = await ctx.db
-      .query('surveys')
-      .withIndex('by_surveyor', (q) => q.eq('surveyorId', me._id))
+      .withIndex('by_surveyor_status', (q) => q.eq('surveyorId', args.surveyorId!).eq('status', args.status!))
       .order('desc')
       .take(LIST_PAGINATED_SCOPE_LIMIT);
+  } else if (access === 'own') {
+    if (args.status) {
+      rows = await ctx.db
+        .query('surveys')
+        .withIndex('by_surveyor_status', (q) => q.eq('surveyorId', me._id).eq('status', args.status!))
+        .order('desc')
+        .take(LIST_PAGINATED_SCOPE_LIMIT);
+    } else {
+      rows = await ctx.db
+        .query('surveys')
+        .withIndex('by_surveyor', (q) => q.eq('surveyorId', me._id))
+        .order('desc')
+        .take(LIST_PAGINATED_SCOPE_LIMIT);
+    }
   } else if (args.municipalityId) {
     rows = await querySurveysByMunicipality(ctx, args.municipalityId, args.status);
   } else if (args.districtId) {
@@ -652,7 +680,7 @@ export const get = query({
     if (!survey) return null;
     await assertCanAccessSurvey(ctx, me, survey);
 
-    const [floors, photos, qcRemarks, surveyor, muni] = await Promise.all([
+    const [floors, hydratedPhotos, qcRemarks, surveyor, muni] = await Promise.all([
       ctx.db
         .query('floors')
         .withIndex('by_survey', (q) => q.eq('surveyId', args.id))
@@ -661,23 +689,35 @@ export const get = query({
       ctx.db
         .query('photos')
         .withIndex('by_survey', (q) => q.eq('surveyId', args.id))
-        .collect(),
+        .collect()
+        .then((rows) =>
+          Promise.all(
+            rows.map(async (p) => ({
+              ...p,
+              url: await ctx.storage.getUrl(p.storageId),
+            })),
+          ),
+        ),
       ctx.db
         .query('qcRemarks')
         .withIndex('by_survey', (q) => q.eq('surveyId', args.id))
         .order('desc')
-        .collect(),
+        .collect()
+        .then(async (rows) => {
+          const authorIds = Array.from(new Set(rows.map((r) => r.authorId)));
+          const authors = await Promise.all(authorIds.map((id) => ctx.db.get(id)));
+          const byId = mapTruthyById(authors);
+          return rows.map((r) => ({
+            ...r,
+            author: byId.get(r.authorId)
+              ? { _id: r.authorId, name: byId.get(r.authorId)!.name, role: byId.get(r.authorId)!.role }
+              : null,
+          }));
+        }),
       ctx.db.get(survey.surveyorId),
       ctx.db.get(survey.municipalityId),
     ]);
 
-    // Hydrate photo URLs from Convex storage so the client can display them directly.
-    const hydratedPhotos = await Promise.all(
-      photos.map(async (p) => ({
-        ...p,
-        url: await ctx.storage.getUrl(p.storageId),
-      })),
-    );
     const propertyId = resolvePropertyId(survey, muni?.code ?? '') ?? survey.propertyId;
 
     return {
