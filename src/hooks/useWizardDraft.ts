@@ -1,5 +1,15 @@
+import type { Id } from '@/convex/_generated/dataModel';
 import { validateGpsCapture } from '@/lib/gpsValidation';
 import { primaryOwnerMobileFromOwners } from '@/lib/ownerMobile';
+import {
+  altMobileError,
+  isValidConstructedYear,
+  isValidParcelNo,
+  isValidTenDigitMobile,
+  isValidUnitNo,
+  primaryMobileError,
+} from '@/lib/surveyFieldValidation';
+import { normalizeTaxRateZone } from '@/lib/taxationMasters';
 import { isPinValidForUlb } from '@/utils/addressValidation';
 import { plinthSqftFromFloors } from '@/utils/area';
 import { normalizeFloorFields, usageTypeToOccupied } from '@/utils/floorRow';
@@ -9,15 +19,6 @@ import { surveyPhotosComplete } from '@/utils/surveyPhotos';
 import { taxationSubcategoryComplete } from '@/utils/taxation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
-import type { Id } from '@/convex/_generated/dataModel';
-import {
-  altMobileError,
-  isValidConstructedYear,
-  isValidParcelNo,
-  isValidTenDigitMobile,
-  isValidUnitNo,
-  primaryMobileError,
-} from '@/lib/surveyFieldValidation';
 import type { StepConfig } from './wizardStepConfig';
 
 const KEY = (localId: string) => `wizard_draft:${localId}`;
@@ -617,7 +618,7 @@ export function draftToSaveDraftPayload(d: WizardDraft) {
     propertyUse: d.propertyUse,
     situation: d.situation,
     roadType: d.roadType,
-    taxRateZone: d.taxRateZone,
+    taxRateZone: normalizeTaxRateZone(d.taxRateZone) || undefined,
     plotSqft: d.plotSqft,
     plinthSqft: plinthSqftFromFloors(d.floors ?? []) || d.plinthSqft,
     municipalWaterConnection: d.municipalWaterConnection,
@@ -689,7 +690,7 @@ export function draftToUpsertArgs(d: WizardDraft) {
     propertyUse: d.propertyUse,
     situation: d.situation,
     roadType: d.roadType,
-    taxRateZone: d.taxRateZone,
+    taxRateZone: normalizeTaxRateZone(d.taxRateZone) || undefined,
     plotSqft: d.plotSqft ?? 0,
     plinthSqft: plinthSqftFromFloors(d.floors ?? []) || (d.plinthSqft ?? 0),
     municipalWaterConnection: d.municipalWaterConnection,

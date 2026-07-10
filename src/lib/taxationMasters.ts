@@ -2,7 +2,7 @@
  * Taxation-step canonical dropdown values and idempotent masters seed.
  * Property-use subcategories are keyed by parent `property_use` value.
  */
-import { resolveTaxRateZoneKey } from "../../lib/qc/tax-rate-matrix";
+import { resolveTaxRateZoneKey } from '../../lib/qc/tax-rate-matrix';
 
 export type MasterOption = { value: string; label: string };
 
@@ -216,9 +216,12 @@ export function validateTaxationSection(
   }
 
   const taxRateZone = normalizeTaxRateZone(input.taxRateZone);
-  if (strict && (!taxRateZone || !taxZoneSet.has(taxRateZone))) {
+  const rawTaxRateZone = input.taxRateZone?.trim() ?? '';
+  const taxZoneValid =
+    !!taxRateZone && (taxZoneSet.has(taxRateZone) || (!!rawTaxRateZone && taxZoneSet.has(rawTaxRateZone)));
+  if (strict && !taxZoneValid) {
     details.taxRateZone = ['Select a valid road size tax zone'];
-  } else if (taxRateZone && !taxZoneSet.has(taxRateZone)) {
+  } else if (taxRateZone && !taxZoneValid) {
     details.taxRateZone = ['Select a valid road size tax zone'];
   }
 
