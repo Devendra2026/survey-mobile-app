@@ -12,9 +12,9 @@ import {
 } from '@/components/admin/tenant-sections';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
+import { useCapabilityQuery } from '@/hooks/use-capability-query';
 import { toUserMessage } from '@/utils/errors';
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
 import { useCallback, useMemo, useReducer } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 
@@ -127,10 +127,8 @@ function tenantsReducer(state: TenantsState, action: TenantsAction): TenantsStat
 }
 
 export default function AdminTenantsScreen() {
-  const { convexReady } = useClerkConvexAuth();
-  const queryArgs = convexReady ? {} : ('skip' as const);
-  const tree = useQuery(api.tenants.queries.listForAdmin, queryArgs);
-  const assessmentYears = useQuery(api.tenants.queries.listAssessmentYears, queryArgs);
+  const tree = useCapabilityQuery(api.tenants.queries.listForAdmin, 'tenants.manage');
+  const assessmentYears = useCapabilityQuery(api.tenants.queries.listAssessmentYears, 'tenants.manage');
   const seed = useMutation(api.tenants.mutations.seedReferenceData);
   const upsertDistrict = useMutation(api.tenants.mutations.upsertDistrict);
   const upsertMunicipality = useMutation(api.tenants.mutations.upsertMunicipality);

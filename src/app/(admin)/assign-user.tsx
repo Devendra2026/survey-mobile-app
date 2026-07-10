@@ -12,6 +12,7 @@ import {
 } from '@/components/admin/assign-user-sections';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { useCapabilityQuery } from '@/hooks/use-capability-query';
 import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
 import { toUserMessage } from '@/utils/errors';
 import { BottomBarClearance } from '@/utils/ui-layout';
@@ -44,8 +45,12 @@ export default function AssignUserScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { convexReady } = useClerkConvexAuth();
 
-  const user = useQuery(api.admin.queries.getUserForAdmin, convexReady && userId ? { userId: userId as Id<'users'> } : 'skip');
-  const tree = useQuery(api.tenants.queries.listForAdmin, convexReady ? {} : 'skip');
+  const user = useCapabilityQuery(
+    api.admin.queries.getUserForAdmin,
+    'users.view',
+    userId ? { userId: userId as Id<'users'> } : 'skip',
+  );
+  const tree = useCapabilityQuery(api.tenants.queries.listForAdmin, 'tenants.manage');
   const setAllotments = useMutation(api.allotments.mutations.setForUser);
   const existingAllotments = useQuery(
     api.allotments.queries.listForUser,

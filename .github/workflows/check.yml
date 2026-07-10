@@ -15,4 +15,6 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
+      - name: Sync Convex API from monorepo sibling
+        run: npm run ensure:convex-api
       - run: npm run check

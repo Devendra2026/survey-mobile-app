@@ -1,4 +1,5 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Vendored Convex API (synced via npm run sync:convex / ensure:convex-api)
+convex/
 
 # dependencies
 node_modules/

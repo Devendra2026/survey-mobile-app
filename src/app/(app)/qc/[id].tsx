@@ -4,6 +4,7 @@
 import { AppButton, AppCard, AppInput, Banner, Spinner, Tag, Toast } from '@/components';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
 import { toUserMessage } from '@/utils/errors';
 import { formatSurveyParcelLabel, timeAgo } from '@/utils/format';
 import { flatListProps } from '@/utils/scroll-props';
@@ -52,8 +53,9 @@ export default function QcConversationScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const surveyId = params.id as Id<'surveys'> | undefined;
 
-  const survey = useQuery(api.surveys.queries.get, surveyId ? { id: surveyId } : 'skip');
-  const remarks = useQuery(api.qc.queries.listRemarks, surveyId ? { surveyId } : 'skip') ?? [];
+  const { convexReady } = useClerkConvexAuth();
+  const survey = useQuery(api.surveys.queries.get, convexReady && surveyId ? { id: surveyId } : 'skip');
+  const remarks = useQuery(api.qc.queries.listRemarks, convexReady && surveyId ? { surveyId } : 'skip') ?? [];
   const addRemark = useMutation(api.qc.mutations.addRemark);
   const resolveRemark = useMutation(api.qc.mutations.resolveRemark);
 

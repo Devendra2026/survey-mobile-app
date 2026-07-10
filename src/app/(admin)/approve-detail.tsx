@@ -17,11 +17,11 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { WorkflowSteps } from '@/components/admin/workflow-steps';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
+import { useCapabilityQuery } from '@/hooks/use-capability-query';
 import { toUserMessage } from '@/utils/errors';
 import { BottomBarClearance } from '@/utils/ui-layout';
 import { Ionicons } from '@expo/vector-icons';
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
@@ -79,10 +79,8 @@ export default function ApproveDetailScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = params.userId as Id<'users'> | undefined;
-  const { convexReady } = useClerkConvexAuth();
-
-  const tree = useQuery(api.tenants.queries.listForAdmin, convexReady ? {} : 'skip');
-  const pendingList = useQuery(api.admin.queries.listPendingApprovals, convexReady ? {} : 'skip');
+  const tree = useCapabilityQuery(api.tenants.queries.listForAdmin, 'tenants.manage');
+  const pendingList = useCapabilityQuery(api.admin.queries.listPendingApprovals, 'users.approve');
   const approve = useMutation(api.admin.mutations.approveUser);
   const rejectUser = useMutation(api.admin.mutations.rejectUser);
 

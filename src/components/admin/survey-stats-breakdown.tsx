@@ -4,9 +4,9 @@
 import { AppCard, AppDropdown, KpiCard, SectionLabel, Spinner } from '@/components';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { useCapabilityQuery } from '@/hooks/use-capability-query';
 import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
 import { useClientNowMs } from '@/hooks/use-client-now';
-import { useQuery } from 'convex/react';
 import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -97,7 +97,7 @@ export function SurveyStatsBreakdown({ eyebrow, showFilters = true }: SurveyStat
     };
   }, [convexReady, nowMs, districtId, municipalityId, surveyorId]);
 
-  const stats = useQuery(api.analytics.queries.surveyStatsBreakdown, queryArgs);
+  const stats = useCapabilityQuery(api.analytics.queries.surveyStatsBreakdown, 'analytics.view', queryArgs);
 
   const districtOptions = useMemo(
     () => [

@@ -45,6 +45,12 @@ export function getEnvIssues(): string[] {
 
 export const envReady = getEnvIssues().length === 0;
 
+if (!__DEV__ && env.convexUrl.includes('.convex.cloud')) {
+  console.error(
+    '[env] Release build is pointed at Convex Cloud. Fleet APKs should use EXPO_PUBLIC_CONVEX_URL=https://api.sdvedutech.in',
+  );
+}
+
 if (__DEV__) {
   for (const issue of getEnvIssues()) {
     console.warn(`[env] Missing or invalid: ${issue}`);

@@ -5,7 +5,7 @@ import { Avatar, Banner, EmptyState, Spinner, Tag, Toast } from '@/components';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { useConvexReadyQuery } from '@/hooks/use-convex-ready-query';
+import { useCapabilityQuery } from '@/hooks/use-capability-query';
 import { toUserMessage } from '@/utils/errors';
 import { timeAgo } from '@/utils/format';
 import { flatListProps } from '@/utils/scroll-props';
@@ -100,7 +100,7 @@ const ApprovalRow = memo(function ApprovalRow({
 
 export default function ApprovalsScreen() {
   const router = useRouter();
-  const pending = useConvexReadyQuery(api.admin.queries.listPendingApprovals);
+  const pending = useCapabilityQuery(api.admin.queries.listPendingApprovals, 'users.approve');
   const rejectUser = useMutation(api.admin.mutations.rejectUser);
   const [toast, setToast] = useState<{ title: string; tone: 'success' | 'danger' } | null>(null);
   const [busyId, setBusyId] = useState<Id<'users'> | null>(null);

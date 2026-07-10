@@ -1,5 +1,6 @@
 import { AppButton, AppCard, Avatar, ListRow, SectionLabel, Spinner, Tag } from '@/components';
 import { api } from '@/convex/_generated/api';
+import { useCapabilityQuery } from '@/hooks/use-capability-query';
 import { useConvexReadyQuery } from '@/hooks/use-convex-ready-query';
 import { humanizeRole } from '@/utils/format';
 import { useAuth } from '@clerk/expo';
@@ -37,8 +38,8 @@ function StatTile({
 export default function AdminProfileScreen() {
   const router = useRouter();
   const me = useConvexReadyQuery(api.users.queries.currentUser);
-  const pending = useConvexReadyQuery(api.admin.queries.listPendingApprovals);
-  const activeUsers = useConvexReadyQuery(api.admin.queries.countActiveUsers);
+  const pending = useCapabilityQuery(api.admin.queries.listPendingApprovals, 'users.approve');
+  const activeUsers = useCapabilityQuery(api.admin.queries.countActiveUsers, 'users.view');
   const { signOut } = useAuth();
 
   if (!me) return <Spinner label="Loading profile…" />;

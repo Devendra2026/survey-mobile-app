@@ -1,10 +1,9 @@
 import { LayoutGuard } from '@/components/layout-guard';
 import { TAB_BAR_CONTENT_HEIGHT, tabBarBottomInset } from '@/constants/tabBar';
 import { api } from '@/convex/_generated/api';
-import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
+import { useCapabilityQuery } from '@/hooks/use-capability-query';
 import { useTheme } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from 'convex/react';
 import { Tabs } from 'expo-router';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
@@ -13,9 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function AdminLayout() {
   const insets = useSafeAreaInsets();
   const bottomInset = tabBarBottomInset(insets);
-  const { convexReady } = useClerkConvexAuth();
   const { theme } = useTheme();
-  const pendingCount = useQuery(api.admin.queries.pendingApprovalCount, convexReady ? {} : 'skip') ?? 0;
+  const pendingCount = useCapabilityQuery(api.admin.queries.pendingApprovalCount, 'users.approve') ?? 0;
 
   const screenOptions = useMemo(
     () => ({

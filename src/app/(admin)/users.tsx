@@ -3,6 +3,7 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { RoleSegmentedControl, UserDirectoryCard, UserSearchBar, type UserItem } from '@/components/admin/user-list';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { useHasCapability } from '@/hooks/use-has-capability';
 import { flatListProps } from '@/utils/scroll-props';
 import { FlashList } from '@shopify/flash-list';
 import { usePaginatedQuery } from 'convex/react';
@@ -25,9 +26,11 @@ export default function AdminUsersScreen() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const canViewUsers = useHasCapability('users.view');
+
   const paginated = usePaginatedQuery(
     api.admin.queries.listUsers as Parameters<typeof usePaginatedQuery>[0],
-    { role: role ?? undefined },
+    canViewUsers ? { role: role ?? undefined } : 'skip',
     { initialNumItems: PAGE_SIZE },
   );
 
