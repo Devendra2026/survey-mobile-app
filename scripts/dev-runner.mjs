@@ -3,10 +3,16 @@
  * Both apps must use the same EXPO_PUBLIC_CONVEX_URL / NEXT_PUBLIC_CONVEX_URL.
  */
 import { execSync, spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { prepareExpoDevEnv, printExpoDevTips, spawnExpo } from "./expo-dev.mjs";
 import { patchExpoNgrok } from "./patch-expo-ngrok.mjs";
 import { patchExpoWsTunnel } from "./patch-expo-ws-tunnel.mjs";
 import { patchNgrokClient } from "./patch-ngrok-client.mjs";
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+execSync("node ./scripts/ensure-convex-api.mjs", { stdio: "inherit", cwd: root });
 
 const tunnel = process.argv.includes("--tunnel");
 const extraArgs = process.argv.slice(2).filter((a) => a !== "--tunnel");

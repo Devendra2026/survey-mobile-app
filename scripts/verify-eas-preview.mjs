@@ -278,7 +278,7 @@ if (!failed) {
 
 if (!failed) {
   try {
-    execSync('node ./scripts/verify-clerk-convex.mjs --prod', { stdio: 'inherit', cwd: process.cwd() });
+    execSync('node ./scripts/verify-clerk-convex.mjs --prod --target android', { stdio: 'inherit', cwd: process.cwd() });
   } catch {
     failed = true;
   }

@@ -3,16 +3,7 @@ const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 
 const projectRoot = __dirname;
-const localConvexGenerated = path.resolve(projectRoot, "convex", "_generated");
-const backendConvexRoot = path.resolve(
-  projectRoot,
-  "../sdv-monorepo-apps/packages/backend/convex",
-);
-const convexGeneratedRoot = require("fs").existsSync(
-  path.join(localConvexGenerated, "api.js"),
-)
-  ? localConvexGenerated
-  : path.resolve(backendConvexRoot, "_generated");
+const vendoredConvexGenerated = path.resolve(projectRoot, "src", "convex", "_generated");
 const expoConfig = getDefaultConfig(projectRoot);
 const expoTransformer = expoConfig.transformer ?? {};
 
@@ -37,9 +28,23 @@ config.resolver.unstable_conditionsByPlatform = {
 config.resolver.unstable_enableSymlinks = true;
 config.resolver.disableHierarchicalLookup = true;
 config.resolver.nodeModulesPaths = [path.resolve(projectRoot, "node_modules")];
-config.watchFolders = [
-  path.resolve(projectRoot, "node_modules"),
-  convexGeneratedRoot,
-];
+config.watchFolders = [path.resolve(projectRoot, "node_modules")];
+
+// Bundle vendored src/convex/_generated even when tsconfig points types at the monorepo.
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName.startsWith("@/convex/_generated/")) {
+    const subpath = moduleName.slice("@/convex/_generated/".length);
+    const vendoredModule = path.join(vendoredConvexGenerated, subpath);
+    if (defaultResolveRequest) {
+      return defaultResolveRequest(context, vendoredModule, platform);
+    }
+    return context.resolveRequest(context, vendoredModule, platform);
+  }
+  if (defaultResolveRequest) {
+    return defaultResolveRequest(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
 
 module.exports = config;

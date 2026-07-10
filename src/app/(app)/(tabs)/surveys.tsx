@@ -5,6 +5,7 @@
 import { AppButton, EmptyState, ListSkeleton, SurveyCard } from '@/components';
 import { api } from '@/convex/_generated/api';
 import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
+import { useClientNowMs } from '@/hooks/use-client-now';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { surveyOwnerListLabel } from '@/utils/format';
 import { flashListProps } from '@/utils/scroll-props';
@@ -35,16 +36,18 @@ export default function SurveysScreen() {
   const router = useRouter();
   const { user: me, isLoading: profileLoading } = useCurrentUser();
   const { convexReady } = useClerkConvexAuth();
+  const nowMs = useClientNowMs();
   const [filter, setFilter] = useState<StatusFilter>('all');
 
   const queryArgs = useMemo(() => {
-    if (!convexReady || profileLoading || !me) return 'skip' as const;
+    if (!convexReady || profileLoading || !me || !Number.isFinite(nowMs)) return 'skip' as const;
     return {
       status: filter === 'all' || filter === 'rejected' ? undefined : filter,
       qcStatus: filter === 'rejected' ? ('rejected' as const) : undefined,
       sortBy: filter === 'draft' ? ('updated' as const) : undefined,
+      nowMs,
     };
-  }, [convexReady, profileLoading, me, filter]);
+  }, [convexReady, profileLoading, me, filter, nowMs]);
 
   const paginated = usePaginatedQuery(
     api.surveys.queries.listPaginated as Parameters<typeof usePaginatedQuery>[0],

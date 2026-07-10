@@ -1,5 +1,6 @@
 # Vendored Convex API (synced via npm run sync:convex / ensure:convex-api)
 convex/
+src/convex/
 
 # dependencies
 node_modules/

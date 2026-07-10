@@ -55,6 +55,8 @@ In [Clerk Dashboard](https://dashboard.clerk.com) → **Integrations → Convex 
 
 ## Getting started
 
+**Do not run `npx convex dev` in this folder.** This repo is an Expo client only. Use `npm run dev` here for the Metro bundler. Start the shared Convex backend from `../sdv-monorepo-apps/packages/backend` (`npm run dev`), then run `npm run sync:convex` in this folder to refresh vendored API types.
+
 1. Ensure the monorepo backend is running (`npm run dev` in `../sdv-monorepo-apps/packages/backend`).
 
 2. Configure env:
