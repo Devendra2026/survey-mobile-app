@@ -2,7 +2,7 @@
  * Verifies unified draft merge and stale-local detection logic.
  * Run via: npm run verify:unified-drafts
  */
-import type { Id } from '../convex/_generated/dataModel';
+import type { Id } from '@/convex/_generated/dataModel';
 import { isStaleLinkedLocalDraft, mergeDraftLists } from '../src/utils/unifiedDraftMerge';
 
 let failed = false;

@@ -19,7 +19,7 @@ export default function WizardEntry() {
   const router = useRouter();
   const params = useLocalSearchParams<{ resume?: string; localId?: string; surveyId?: string }>();
   const surveyId = params.surveyId as Id<'surveys'> | undefined;
-  const survey = useConvexReadyQuery(api.survey.get, surveyId ? { id: surveyId } : 'skip');
+  const survey = useConvexReadyQuery(api.surveys.queries.get, surveyId ? { id: surveyId } : 'skip');
   const started = useRef(false);
   const [error, setError] = useState<string | null>(null);
 

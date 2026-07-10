@@ -1,6 +1,6 @@
 import { Banner } from '@/components';
 import { canRenderNativeMap, mapsPreviewUnavailableMessage } from '@/config/mapsEnv';
-import type { GpsCaptureInput } from '@/convex/lib/gpsValidation';
+import type { GpsCaptureInput } from '@/lib/gpsValidation';
 import { formatGpsDisplay } from '@/utils/formatGps';
 import { isExpoGo } from '@/utils/gpsPolicy';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';

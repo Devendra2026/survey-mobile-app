@@ -14,7 +14,7 @@ import type { FunctionReturnType } from 'convex/server';
 import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export type SurveyDetail = NonNullable<FunctionReturnType<typeof api.survey.get>>;
+export type SurveyDetail = NonNullable<FunctionReturnType<typeof api.surveys.queries.get>>;
 
 type OwnerRow = NonNullable<SurveyDetail['owners']>[number];
 

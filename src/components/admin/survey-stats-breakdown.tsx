@@ -97,7 +97,7 @@ export function SurveyStatsBreakdown({ eyebrow, showFilters = true }: SurveyStat
     };
   }, [convexReady, nowMs, districtId, municipalityId, surveyorId]);
 
-  const stats = useQuery(api.analytics.surveyStatsBreakdown, queryArgs);
+  const stats = useQuery(api.analytics.queries.surveyStatsBreakdown, queryArgs);
 
   const districtOptions = useMemo(
     () => [

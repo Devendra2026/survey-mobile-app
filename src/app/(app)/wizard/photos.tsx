@@ -70,7 +70,7 @@ function PhotoFields({
   );
 
   const urlRows = useQuery(
-    api.photos.resolveStorageUrls,
+    api.photos.queries.resolveStorageUrls,
     draft.serverSurveyId && storageIds.length > 0 ? { storageIds, surveyId: draft.serverSurveyId } : 'skip',
   );
 

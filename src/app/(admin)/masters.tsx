@@ -49,7 +49,7 @@ export default function AdminMastersScreen() {
   const [tab, setTab] = useState<MastersTab>('tenants');
   const [expandedMuni, setExpandedMuni] = useState<string | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const masters = useConvexReadyQuery(api.masters.bundle);
+  const masters = useConvexReadyQuery(api.masters.queries.bundle);
 
   const wardsByMuni = useMemo(() => {
     type WardRow = NonNullable<typeof masters>['wards'][number];

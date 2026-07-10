@@ -6,8 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import type { FunctionReturnType } from 'convex/server';
 import { Pressable, Text, View } from 'react-native';
 
-type TenantTree = FunctionReturnType<typeof api.tenants.listForAdmin>;
-type AssessmentYear = FunctionReturnType<typeof api.tenants.listAssessmentYears>[number];
+type TenantTree = FunctionReturnType<typeof api.tenants.queries.listForAdmin>;
+type AssessmentYear = FunctionReturnType<typeof api.tenants.queries.listAssessmentYears>[number];
 
 const BODY_TYPES = [
   { value: 'municipal_council', label: 'Municipal Council' },

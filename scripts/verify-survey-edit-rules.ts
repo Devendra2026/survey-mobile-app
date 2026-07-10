@@ -2,8 +2,8 @@
  * Ensures saveDraft post-status resolution never downgrades submitted surveys.
  * Run via: npm run verify:survey-edit-rules
  */
-import type { Doc } from '../convex/_generated/dataModel';
-import { resolvePostSaveStatuses } from '../convex/surveyEditRules';
+import type { Doc } from '@/convex/_generated/dataModel';
+import { resolvePostSaveStatuses } from '@/lib/surveyEditRules';
 
 let failed = false;
 

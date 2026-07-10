@@ -2,7 +2,7 @@
  * Field-level wizard validation — drives review missing-field summaries
  * and three-state step indicators (complete / in progress / incomplete).
  */
-import { validateGpsCapture } from '@/convex/lib/gpsValidation';
+import { validateGpsCapture } from '@/lib/gpsValidation';
 import type { WizardDraft } from '@/hooks/useWizardDraft';
 import { stepCompletion } from '@/hooks/useWizardDraft';
 import type { StepConfig } from '@/hooks/wizardStepConfig';
@@ -17,7 +17,7 @@ import {
   parcelNoError,
   primaryMobileError,
   unitNoError,
-} from '../../convex/surveyFieldValidation';
+} from '@/lib/surveyFieldValidation';
 
 export type StepStatus = 'complete' | 'in_progress' | 'incomplete';
 

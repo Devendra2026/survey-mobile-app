@@ -3,7 +3,7 @@
  * OTP is blocked (100 emails/month cap). Creates a verified user with password,
  * requestedRole metadata, and bypass_client_trust — no APK rebuild required.
  *
- * Requires CLERK_SECRET_KEY (sk_test_…) from ../sdv-front-new-app/.env.local or env.
+ * Requires CLERK_SECRET_KEY (sk_test_…) from ../sdv-monorepo-apps/apps/web/.env.local or env.
  *
  * Usage:
  *   node ./scripts/clerk-dev-provision-field-user.mjs --email user@example.com --name "Full Name" --password "secret"
@@ -14,7 +14,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const CLERK_API = 'https://api.clerk.com/v1';
-const WEB_ROOT = path.join(process.cwd(), '..', 'sdv-front-new-app');
+const WEB_ROOT = path.join(process.cwd(), '..', 'sdv-monorepo-apps', 'apps', 'web');
 const ALLOWED_ROLES = new Set(['surveyor', 'supervisor']);
 
 let failed = false;
@@ -172,7 +172,7 @@ function printNextSteps(email) {
 async function main() {
   const secretKey = resolveSecretKey();
   if (!secretKey) {
-    fail('CLERK_SECRET_KEY missing. Set it in ../sdv-front-new-app/.env.local or the environment.');
+    fail('CLERK_SECRET_KEY missing. Set it in ../sdv-monorepo-apps/apps/web/.env.local or the environment.');
     process.exit(1);
   }
   if (!secretKey.startsWith('sk_test_')) {

@@ -78,7 +78,7 @@ try {
       '    • DNS CNAME must match Clerk instructions (frontend-api.clerk.services)\n' +
       '    • If DNS is proxied, use end-to-end HTTPS (not HTTP-to-origin)\n' +
       '    • Wait for certificate provisioning, then re-run this script\n' +
-      '  See: sdv-front-new-app/docs/clerk-production-dashboard.md §1'
+      '  See: sdv-monorepo-apps/apps/web docs for Clerk production setup'
       : '  Check network connectivity and Clerk instance status.'),
   );
   process.exit(1);

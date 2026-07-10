@@ -26,7 +26,7 @@ export default function StepSurveyStart() {
   const { localId } = useLocalSearchParams<{ localId: string }>();
   const { convexReady } = useClerkConvexAuth();
   const masters = useMastersBundle();
-  const me = useQuery(api.users.currentUser, convexReady ? {} : 'skip');
+  const me = useQuery(api.users.queries.currentUser, convexReady ? {} : 'skip');
 
   if (!masters || !me || !localId) {
     return <Spinner label="Loading survey setup…" />;
@@ -82,7 +82,7 @@ function StartFields({
   draft: WizardDraft;
   update: (patch: Partial<WizardDraft>) => Promise<void>;
   masters: MastersBundle;
-  me: NonNullable<ReturnType<typeof useQuery<typeof api.users.currentUser>>>;
+  me: NonNullable<ReturnType<typeof useQuery<typeof api.users.queries.currentUser>>>;
 }) {
   const districtOptions = masters.districts.map((d) => ({
     value: d._id,

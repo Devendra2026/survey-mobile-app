@@ -31,7 +31,7 @@ function profileFromClerk(user: NonNullable<ReturnType<typeof useUser>['user']>)
   };
 }
 
-export type CurrentUserQueryResult = NonNullable<FunctionReturnType<typeof api.users.currentUser>>;
+export type CurrentUserQueryResult = NonNullable<FunctionReturnType<typeof api.users.queries.currentUser>>;
 
 type CurrentUserContextValue = {
   me: CurrentUserQueryResult | null | undefined;
@@ -52,8 +52,8 @@ const CurrentUserContext = createContext<CurrentUserContextValue | null>(null);
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
   const { convexReady } = useClerkConvexAuth();
   const { user, isLoaded: userLoaded } = useUser();
-  const me = useQuery(api.users.currentUser, convexReady ? {} : 'skip');
-  const provision = useMutation(api.users.provisionCurrentUser);
+  const me = useQuery(api.users.queries.currentUser, convexReady ? {} : 'skip');
+  const provision = useMutation(api.users.mutations.provisionCurrentUser);
 
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);

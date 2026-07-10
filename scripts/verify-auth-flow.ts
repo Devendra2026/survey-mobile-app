@@ -18,6 +18,8 @@ function ok(msg: string) {
 
 const root = process.cwd();
 
+const backendRoot = path.join(root, '..', 'sdv-monorepo-apps', 'packages', 'backend', 'convex');
+
 const requiredFiles = [
   'src/app/_layout.tsx',
   'src/app/sso-callback.tsx',
@@ -32,15 +34,15 @@ const requiredFiles = [
   'src/lib/clerk-oauth-redirect.ts',
   'src/components/layout-guard.tsx',
   'src/components/role-gate.tsx',
-  'convex/auth.config.ts',
-  'convex/http.ts',
-  'convex/users.ts',
-  'convex/helpers.ts',
-  'convex/capabilities.ts',
+  path.join(backendRoot, 'auth.config.ts'),
+  path.join(backendRoot, 'http.ts'),
+  path.join(backendRoot, 'users', 'queries.ts'),
+  path.join(backendRoot, 'shared', 'helpers.ts'),
+  path.join(backendRoot, 'shared', 'capabilities.ts'),
 ];
 
 for (const rel of requiredFiles) {
-  const full = path.join(root, rel);
+  const full = path.isAbsolute(rel) ? rel : path.join(root, rel);
   if (!existsSync(full)) {
     fail(`missing ${rel}`);
   }

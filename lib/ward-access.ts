@@ -1,4 +1,4 @@
-import type { Doc, Id } from '../convex/_generated/dataModel';
+import type { Doc, Id } from '@/convex/_generated/dataModel';
 
 /**
  * Pure ward-access check — municipality scope is enforced separately via tenancy.

@@ -3,6 +3,10 @@ const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 
 const projectRoot = __dirname;
+const backendConvexRoot = path.resolve(
+  projectRoot,
+  "../sdv-monorepo-apps/packages/backend/convex",
+);
 const expoConfig = getDefaultConfig(projectRoot);
 const expoTransformer = expoConfig.transformer ?? {};
 
@@ -27,6 +31,9 @@ config.resolver.unstable_conditionsByPlatform = {
 config.resolver.unstable_enableSymlinks = true;
 config.resolver.disableHierarchicalLookup = true;
 config.resolver.nodeModulesPaths = [path.resolve(projectRoot, "node_modules")];
-config.watchFolders = [path.resolve(projectRoot, "node_modules")];
+config.watchFolders = [
+  path.resolve(projectRoot, "node_modules"),
+  path.resolve(backendConvexRoot, "_generated"),
+];
 
 module.exports = config;

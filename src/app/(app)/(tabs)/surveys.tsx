@@ -44,9 +44,13 @@ export default function SurveysScreen() {
     [filter],
   );
 
-  const paginated = usePaginatedQuery(api.survey.listPaginated, queryArgs, {
-    initialNumItems: PAGE_SIZE,
-  });
+  const paginated = usePaginatedQuery(
+    api.surveys.queries.listPaginated as Parameters<typeof usePaginatedQuery>[0],
+    queryArgs,
+    {
+      initialNumItems: PAGE_SIZE,
+    },
+  );
 
   const results = paginated.results;
   const status = paginated.status;

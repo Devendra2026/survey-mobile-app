@@ -1,5 +1,5 @@
 import { AppCard, SectionLabel } from '@/components';
-import type { GpsCaptureInput } from '@/convex/lib/gpsValidation';
+import type { GpsCaptureInput } from '@/lib/gpsValidation';
 import { formatGpsDisplay, formatGpsFull } from '@/utils/formatGps';
 import { isExpoGo } from '@/utils/gpsPolicy';
 import { Ionicons } from '@expo/vector-icons';

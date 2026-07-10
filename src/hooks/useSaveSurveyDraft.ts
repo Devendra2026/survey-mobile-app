@@ -36,10 +36,10 @@ const EMPTY_SECTION_ERRORS: SaveDraftResult['sectionErrors'] = {};
 
 export function useSaveSurveyDraft() {
   const convex = useConvex();
-  const saveDraft = useMutation(api.survey.saveDraft);
-  const upsertFloor = useMutation(api.floors.upsert);
-  const removeFloor = useMutation(api.floors.remove);
-  const linkPhoto = useMutation(api.photos.linkPhoto);
+  const saveDraft = useMutation(api.surveys.mutations.saveDraft);
+  const upsertFloor = useMutation(api.floors.mutations.upsert);
+  const removeFloor = useMutation(api.floors.mutations.remove);
+  const linkPhoto = useMutation(api.photos.mutations.linkPhoto);
   const [saving, setSaving] = useState(false);
 
   const saveInFlight = useRef<Promise<SaveDraftResult> | null>(null);
@@ -102,7 +102,7 @@ export function useSaveSurveyDraft() {
           } else {
             try {
               const keep = new Set(syncedFloorIds);
-              const serverFloors = await withMutationRetry(() => convex.query(api.floors.list, { surveyId: sid }));
+              const serverFloors = await withMutationRetry(() => convex.query(api.floors.queries.list, { surveyId: sid }));
               const removalPromises: ReturnType<typeof removeFloor>[] = [];
               for (const row of serverFloors) {
                 if (!keep.has(row.clientFloorId)) {

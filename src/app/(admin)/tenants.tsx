@@ -129,13 +129,13 @@ function tenantsReducer(state: TenantsState, action: TenantsAction): TenantsStat
 export default function AdminTenantsScreen() {
   const { convexReady } = useClerkConvexAuth();
   const queryArgs = convexReady ? {} : ('skip' as const);
-  const tree = useQuery(api.tenants.listForAdmin, queryArgs);
-  const assessmentYears = useQuery(api.tenants.listAssessmentYears, queryArgs);
-  const seed = useMutation(api.tenants.seedReferenceData);
-  const upsertDistrict = useMutation(api.tenants.upsertDistrict);
-  const upsertMunicipality = useMutation(api.tenants.upsertMunicipality);
-  const upsertWard = useMutation(api.tenants.upsertWard);
-  const upsertAssessmentYear = useMutation(api.tenants.upsertAssessmentYear);
+  const tree = useQuery(api.tenants.queries.listForAdmin, queryArgs);
+  const assessmentYears = useQuery(api.tenants.queries.listAssessmentYears, queryArgs);
+  const seed = useMutation(api.tenants.mutations.seedReferenceData);
+  const upsertDistrict = useMutation(api.tenants.mutations.upsertDistrict);
+  const upsertMunicipality = useMutation(api.tenants.mutations.upsertMunicipality);
+  const upsertWard = useMutation(api.tenants.mutations.upsertWard);
+  const upsertAssessmentYear = useMutation(api.tenants.mutations.upsertAssessmentYear);
 
   const [state, dispatch] = useReducer(tenantsReducer, initialTenantsState);
   const hideToast = useCallback(() => dispatch({ type: 'clearToast' }), []);

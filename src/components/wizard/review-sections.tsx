@@ -1,6 +1,6 @@
 import { AppButton, AppCard, Banner, ListRow, SectionLabel, StepIndicator } from '@/components';
 import { GpsDebugPanel, GpsMapPreview } from '@/components/gis';
-import { displayPropertyId } from '@/convex/propertyId';
+import { displayPropertyId } from '@/lib/propertyId';
 import type { WizardDraft, WizardOwnerRow } from '@/hooks/useWizardDraft';
 import {
   incompleteStepLabels,

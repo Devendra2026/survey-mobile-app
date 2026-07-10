@@ -81,10 +81,10 @@ export default function ApproveDetailScreen() {
   const userId = params.userId as Id<'users'> | undefined;
   const { convexReady } = useClerkConvexAuth();
 
-  const tree = useQuery(api.tenants.listForAdmin, convexReady ? {} : 'skip');
-  const pendingList = useQuery(api.admin.listPendingApprovals, convexReady ? {} : 'skip');
-  const approve = useMutation(api.admin.approveUser);
-  const rejectUser = useMutation(api.admin.rejectUser);
+  const tree = useQuery(api.tenants.queries.listForAdmin, convexReady ? {} : 'skip');
+  const pendingList = useQuery(api.admin.queries.listPendingApprovals, convexReady ? {} : 'skip');
+  const approve = useMutation(api.admin.mutations.approveUser);
+  const rejectUser = useMutation(api.admin.mutations.rejectUser);
 
   const [state, dispatch] = useReducer(approveReducer, initialApproveState);
   const hideToast = useCallback(() => dispatch({ type: 'clearToast' }), []);

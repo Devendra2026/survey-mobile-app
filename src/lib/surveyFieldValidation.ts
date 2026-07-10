@@ -1,8 +1,6 @@
 /**
- * Shared survey field validation — importable from Convex backend and Expo client.
- * Parcel/unit values are validated and stored as strings to preserve leading zeros.
+ * Shared survey field validation — client-side helpers aligned with backend rules.
  */
-
 const PARCEL_NO_RE = /^\d{5}$/;
 const UNIT_NO_RE = /^\d{3}$/;
 const TEN_DIGIT_MOBILE_RE = /^\d{10}$/;

@@ -4,12 +4,16 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-native",
+    "skipLibCheck": true,
     "paths": {
-      "@/convex/*": ["./convex/*"],
+      "@/convex/_generated/*": ["../sdv-monorepo-apps/packages/backend/convex/_generated/*"],
+      "convex/*": ["./node_modules/convex/*"],
+      "convex-helpers/*": ["../sdv-monorepo-apps/node_modules/convex-helpers/*"],
+      "svix": ["../sdv-monorepo-apps/node_modules/svix"],
       "@/*": ["./src/*"],
       "@/assets/*": ["./assets/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts"],
-  "exclude": ["node_modules", "babel.config.js", "metro.config.js", "jest.config.js", "android", "ios", "convex"]
+  "exclude": ["node_modules", "babel.config.js", "metro.config.js", "jest.config.js", "android", "ios"]
 }

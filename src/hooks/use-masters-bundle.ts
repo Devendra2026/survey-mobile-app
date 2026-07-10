@@ -7,6 +7,6 @@ import { useClerkConvexAuth } from './use-clerk-convex-auth';
 /** Reactive masters bundle — skips until Clerk JWT is accepted by Convex. */
 export function useMastersBundle(): MastersBundle | undefined {
   const { convexReady } = useClerkConvexAuth();
-  const raw = useQuery(api.masters.bundle, convexReady ? {} : 'skip');
+  const raw = useQuery(api.masters.queries.bundle, convexReady ? {} : 'skip');
   return useMemo(() => (raw ? normalizeMastersBundle(raw) : undefined), [raw]);
 }

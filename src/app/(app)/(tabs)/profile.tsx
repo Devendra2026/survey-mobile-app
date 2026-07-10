@@ -9,7 +9,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
-  const me = useConvexReadyQuery(api.users.currentUser);
+  const me = useConvexReadyQuery(api.users.queries.currentUser);
   const { signOut } = useAuth();
 
   if (me === undefined) return <Spinner label="Loading…" />;

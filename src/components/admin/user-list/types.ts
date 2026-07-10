@@ -1,7 +1,7 @@
 import { api } from '@/convex/_generated/api';
 import type { FunctionReturnType } from 'convex/server';
 
-export type UserItem = FunctionReturnType<typeof api.admin.listUsers>['page'][number];
+export type UserItem = FunctionReturnType<typeof api.admin.queries.listUsers>['page'][number];
 
 export const ROLE_FILTERS = [
   { value: undefined, label: 'All' },

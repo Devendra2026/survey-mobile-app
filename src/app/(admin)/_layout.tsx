@@ -15,7 +15,7 @@ export default function AdminLayout() {
   const bottomInset = tabBarBottomInset(insets);
   const { convexReady } = useClerkConvexAuth();
   const { theme } = useTheme();
-  const pendingCount = useQuery(api.admin.pendingApprovalCount, convexReady ? {} : 'skip') ?? 0;
+  const pendingCount = useQuery(api.admin.queries.pendingApprovalCount, convexReady ? {} : 'skip') ?? 0;
 
   const screenOptions = useMemo(
     () => ({

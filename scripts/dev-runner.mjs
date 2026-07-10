@@ -1,5 +1,5 @@
 /**
- * Dev entry: Expo only. Convex runs from ../sdv-front-new-app (`npm run dev:backend`).
+ * Dev entry: Expo only. Convex runs from ../sdv-monorepo-apps/packages/backend (`npm run dev`).
  * Both apps must use the same EXPO_PUBLIC_CONVEX_URL / NEXT_PUBLIC_CONVEX_URL.
  */
 import { execSync, spawn } from "node:child_process";
@@ -39,7 +39,7 @@ if (!process.env.EXPO_PUBLIC_CONVEX_URL || !process.env.EXPO_PUBLIC_CLERK_PUBLIS
 }
 
 console.log(
-  "[convex] Backend is not started here — run `npm run dev` in ../sdv-front-new-app (convex dev + web).\n",
+  "[convex] Backend is not started here — run `npm run dev` in ../sdv-monorepo-apps/packages/backend (convex dev).\n",
 );
 
 printExpoDevTips(lanHost, { tunnel });

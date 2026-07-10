@@ -3,7 +3,7 @@ import type { FunctionReturnType } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import { mergeMasterOptions, SANITATION_TYPES, WATER_SOURCES } from '@/utils/services';
 
-export type MastersBundle = FunctionReturnType<typeof api.masters.bundle>;
+export type MastersBundle = FunctionReturnType<typeof api.masters.queries.bundle>;
 
 type MasterOption = { value: string; label: string };
 

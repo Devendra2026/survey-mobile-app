@@ -51,8 +51,8 @@ const NotificationRow = memo(function NotificationRow({
 });
 
 export default function NotificationsScreen() {
-  const list = useConvexReadyQuery(api.masters.listNotifications);
-  const markRead = useMutation(api.masters.markRead);
+  const list = useConvexReadyQuery(api.masters.queries.listNotifications);
+  const markRead = useMutation(api.masters.mutations.markRead);
 
   const handleMarkRead = useCallback(
     (id: Doc<'notifications'>['_id']) => {

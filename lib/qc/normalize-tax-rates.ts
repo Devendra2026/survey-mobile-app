@@ -1,4 +1,4 @@
-import type { Doc } from '../../convex/_generated/dataModel';
+import type { Doc } from '@/convex/_generated/dataModel';
 import {
   DEFAULT_RATE_MATRIX,
   DEFAULT_TAX_RATES,

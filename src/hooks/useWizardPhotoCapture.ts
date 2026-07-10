@@ -89,10 +89,10 @@ export function useWizardPhotoCapture({
   onRecoveryError?: (message: string) => void;
 }) {
   const { isOnline } = useNetworkStatus();
-  const generateUploadUrl = useMutation(api.photos.generateUploadUrl);
-  const releaseStorage = useMutation(api.photos.releaseStorage);
-  const linkPhoto = useMutation(api.photos.linkPhoto);
-  const removeBySurveySlot = useMutation(api.photos.removeBySurveySlot);
+  const generateUploadUrl = useMutation(api.photos.mutations.generateUploadUrl);
+  const releaseStorage = useMutation(api.photos.mutations.releaseStorage);
+  const linkPhoto = useMutation(api.photos.mutations.linkPhoto);
+  const removeBySurveySlot = useMutation(api.photos.mutations.removeBySurveySlot);
 
   const [uploadingSlot, setUploadingSlot] = useState<SurveyPhotoSlot | null>(null);
   const [previewBySlot, setPreviewBySlot] = useState<Partial<Record<SurveyPhotoSlot, string>>>({});

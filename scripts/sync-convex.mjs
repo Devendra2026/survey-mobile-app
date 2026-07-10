@@ -1,5 +1,6 @@
 /**
- * Copy canonical convex/ from sdv-front-new-app into this repo (types + api paths).
+ * Copy canonical convex/ from the monorepo backend into this repo (legacy mirror).
+ * Prefer the tsconfig `@/convex/*` alias to ../sdv-monorepo-apps/packages/backend/convex.
  */
 import { execSync } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -7,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
-const source = join(root, "..", "sdv-front-new-app", "convex");
+const source = join(root, "..", "sdv-monorepo-apps", "packages", "backend", "convex");
 const target = join(root, "convex");
 
 const cmd =
@@ -15,7 +16,7 @@ const cmd =
     ? `robocopy "${source}" "${target}" /MIR /NFL /NDL /NJH /NJS`
     : `rsync -a --delete "${source}/" "${target}/"`;
 
-console.log("[sync:convex] Mirroring from sdv-front-new-app/convex …");
+console.log("[sync:convex] Mirroring from sdv-monorepo-apps/packages/backend/convex …");
 try {
   execSync(cmd, { stdio: "inherit", cwd: root });
 } catch (err) {

@@ -1,5 +1,5 @@
-import { validateGpsCapture } from '@/convex/lib/gpsValidation';
-import { primaryOwnerMobileFromOwners } from '@/convex/ownerMobile';
+import { validateGpsCapture } from '@/lib/gpsValidation';
+import { primaryOwnerMobileFromOwners } from '@/lib/ownerMobile';
 import { isPinValidForUlb } from '@/utils/addressValidation';
 import { plinthSqftFromFloors } from '@/utils/area';
 import { normalizeFloorFields, usageTypeToOccupied } from '@/utils/floorRow';
@@ -9,7 +9,7 @@ import { surveyPhotosComplete } from '@/utils/surveyPhotos';
 import { taxationSubcategoryComplete } from '@/utils/taxation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
-import type { Id } from '../../convex/_generated/dataModel';
+import type { Id } from '@/convex/_generated/dataModel';
 import {
   altMobileError,
   isValidConstructedYear,
@@ -17,7 +17,7 @@ import {
   isValidTenDigitMobile,
   isValidUnitNo,
   primaryMobileError,
-} from '../../convex/surveyFieldValidation';
+} from '@/lib/surveyFieldValidation';
 import type { StepConfig } from './wizardStepConfig';
 
 const KEY = (localId: string) => `wizard_draft:${localId}`;

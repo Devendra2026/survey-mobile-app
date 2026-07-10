@@ -3,7 +3,7 @@
  * accepted by validation and rate matrices.
  * Run: npm run verify:tax-zone-validation
  */
-import { TAX_RATE_ZONES, buildAllowedTaxZoneSet, validateTaxationSection } from '../convex/taxationMasters';
+import { TAX_RATE_ZONES, buildAllowedTaxZoneSet, validateTaxationSection } from '@/lib/taxationMasters';
 import { resolveTaxRateZoneKey } from '../lib/qc/tax-rate-matrix';
 
 const CANONICAL = new Set(TAX_RATE_ZONES.map((o) => o.value));

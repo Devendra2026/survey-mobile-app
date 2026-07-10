@@ -1,4 +1,4 @@
-import { GPS_DEV_PREVIEW_PROVIDER } from '@/convex/gpsAccuracy';
+import { GPS_DEV_PREVIEW_PROVIDER } from '@/lib/gpsAccuracy';
 import Constants from 'expo-constants';
 
 export { GPS_DEV_PREVIEW_PROVIDER };

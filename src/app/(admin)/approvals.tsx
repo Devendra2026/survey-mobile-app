@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
-type ApprovalItem = FunctionReturnType<typeof api.admin.listPendingApprovals>[number];
+type ApprovalItem = FunctionReturnType<typeof api.admin.queries.listPendingApprovals>[number];
 
 const ListSeparator = () => <View className="h-2.5" />;
 
@@ -100,8 +100,8 @@ const ApprovalRow = memo(function ApprovalRow({
 
 export default function ApprovalsScreen() {
   const router = useRouter();
-  const pending = useConvexReadyQuery(api.admin.listPendingApprovals);
-  const rejectUser = useMutation(api.admin.rejectUser);
+  const pending = useConvexReadyQuery(api.admin.queries.listPendingApprovals);
+  const rejectUser = useMutation(api.admin.mutations.rejectUser);
   const [toast, setToast] = useState<{ title: string; tone: 'success' | 'danger' } | null>(null);
   const [busyId, setBusyId] = useState<Id<'users'> | null>(null);
   const [refreshing, setRefreshing] = useState(false);

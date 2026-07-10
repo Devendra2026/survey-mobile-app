@@ -1,10 +1,10 @@
 # SDV survey mobile app (Expo)
 
-Field survey capture for Android/iOS. Writes to the **same Convex deployment** as the admin web app in [`../sdv-front-new-app`](../sdv-front-new-app).
+Field survey capture for Android/iOS. Writes to the **same Convex deployment** as the admin web app in [`../sdv-monorepo-apps`](../sdv-monorepo-apps).
 
 ## Shared backend (Clerk + Convex)
 
-| Setting               | Mobile fleet (`.env.prod` → EAS)      | Web (`sdv-front-new-app/.env.local`) | Convex deployment                              |
+| Setting               | Mobile fleet (`.env.prod` → EAS)      | Web (`sdv-monorepo-apps/apps/web/.env.local`) | Convex deployment                              |
 | --------------------- | ------------------------------------- | ------------------------------------ | ---------------------------------------------- |
 | Convex URL            | `EXPO_PUBLIC_CONVEX_URL`              | `NEXT_PUBLIC_CONVEX_URL`             | same backend (cloud or self-hosted `https://`) |
 | Clerk publishable key | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`  | **must be the same Clerk app**                 |
@@ -22,7 +22,7 @@ Development instances cap Clerk-delivered emails at **100/month**. Fleet APK ins
 **Unblock field testers today:**
 
 1. **Dashboard (all users):** [Clerk Dashboard](https://dashboard.clerk.com) → development instance → **Configure → Attack protection → Client Trust → Disable**.
-2. **Per user (script):** from `survey-app`, with `CLERK_SECRET_KEY` in `../sdv-front-new-app/.env.local`:
+2. **Per user (script):** from `survey-app`, with `CLERK_SECRET_KEY` in `../sdv-monorepo-apps/apps/web/.env.local`:
 
    ```bash
    npm run clerk:unblock-field-user
@@ -55,7 +55,7 @@ In [Clerk Dashboard](https://dashboard.clerk.com) → **Integrations → Convex 
 
 ## Getting started
 
-1. Ensure the web backend is running (`npm run dev` in `../sdv-front-new-app`).
+1. Ensure the monorepo backend is running (`npm run dev` in `../sdv-monorepo-apps/packages/backend`).
 
 2. Configure env:
 
@@ -102,8 +102,8 @@ Field APKs use the **preview** EAS environment (`eas.json` → `environment: "pr
 2. Align Convex issuer with that Clerk app:
 
    ```bash
-   cd ../sdv-front-new-app
-   npm run deploy:backend:dev
+   cd ../sdv-monorepo-apps/packages/backend
+   npx convex dev
    # or: npx convex env set CLERK_JWT_ISSUER_DOMAIN "https://organic-halibut-21.clerk.accounts.dev"
    ```
 

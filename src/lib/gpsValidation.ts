@@ -1,7 +1,4 @@
-import type { Doc } from "../_generated/dataModel";
-import { GPS_CAPTURE_MAX_AGE_SUBMIT_MS } from "../gpsAccuracy";
-
-type GpsCapture = NonNullable<Doc<"surveys">["gps"]>;
+import { GPS_CAPTURE_MAX_AGE_SUBMIT_MS } from "./gpsAccuracy";
 
 /** Client-friendly GPS capture shape (matches surveys.gps). */
 export type GpsCaptureInput = {
@@ -27,7 +24,7 @@ export type ValidateGpsOptions = {
   now?: number;
 };
 
-export function validateGps(gps: GpsCapture, options?: ValidateGpsOptions): string | null {
+export function validateGps(gps: GpsCaptureInput, options?: ValidateGpsOptions): string | null {
   const strict = options?.strict ?? false;
   const now = options?.now ?? Date.now();
 
@@ -55,13 +52,13 @@ export function validateGps(gps: GpsCapture, options?: ValidateGpsOptions): stri
   return null;
 }
 
-export function assertValidGps(gps: GpsCapture, options?: ValidateGpsOptions): void {
+export function assertValidGps(gps: GpsCaptureInput, options?: ValidateGpsOptions): void {
   const message = validateGps(gps, options);
   if (message) throw new GpsValidationError(message);
 }
 
 /** Array form for mobile clients and verify scripts. */
-export function validateGpsCapture(gps: GpsCapture, options?: ValidateGpsOptions): string[] {
+export function validateGpsCapture(gps: GpsCaptureInput, options?: ValidateGpsOptions): string[] {
   const message = validateGps(gps, options);
   return message ? [message] : [];
 }

@@ -38,7 +38,7 @@ export default function DashboardScreen() {
   }, []);
   const counts = useDashboardCounts();
   const { user: me } = useCurrentUser();
-  const recent = useQuery(api.survey.list, me ? { limit: 5, sortBy: 'updated' as const } : 'skip');
+  const recent = useQuery(api.surveys.queries.list, me ? { limit: 5, sortBy: 'updated' as const } : 'skip');
 
   const { isOnline } = useNetworkStatus();
   const [draftsEnabled, setDraftsEnabled] = useState(false);

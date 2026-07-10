@@ -5,7 +5,7 @@
  * Convex (`requireRole`, tenancy checks, admin.ts). Never treat `can()` as
  * a security boundary.
  *
- * Keep in sync with sdv-front-new-app/lib/permissions.ts.
+ * Keep in sync with sdv-monorepo-apps/apps/web/lib/permissions.ts.
  */
 
 /** Built-in roles; custom keys come from Convex `roles` table. */

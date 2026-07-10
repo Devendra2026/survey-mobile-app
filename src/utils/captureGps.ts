@@ -1,4 +1,4 @@
-import { validateGpsCapture } from '@/convex/lib/gpsValidation';
+import { validateGpsCapture } from '@/lib/gpsValidation';
 import type { WizardDraft } from '@/hooks/useWizardDraft';
 import { locationErrorMessage } from '@/utils/gpsLocationErrors';
 import { getGpsProviderTag } from '@/utils/gpsPolicy';

@@ -70,7 +70,7 @@ export function useUnifiedDrafts(options: UseUnifiedDraftsOptions = {}) {
   const knownLocalIdsRef = useRef<Set<string>>(new Set());
 
   const serverDrafts = useQuery(
-    api.survey.list,
+    api.surveys.queries.list,
     convexReady && enabled && me
       ? { status: 'draft' as const, sortBy: 'updated' as const, surveyorId: me._id, limit: serverLimit }
       : 'skip',

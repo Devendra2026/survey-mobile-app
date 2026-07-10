@@ -33,22 +33,23 @@ function clerkIssuerFromPublishableKey(pk) {
   }
 }
 
-function readConvexIssuer(webRoot, useProductionEnv) {
+function readConvexIssuer(convexRoot, useProductionEnv) {
   const envFileName = useProductionEnv ? '.env.production' : '.env.local';
-  const envFilePath = path.join(webRoot, envFileName);
+  const envFilePath = path.join(convexRoot, envFileName);
   if (!existsSync(envFilePath)) {
     throw new Error(`Missing ${envFilePath}`);
   }
   // --env-file avoids loading .env.local CONVEX_DEPLOYMENT alongside self-hosted prod keys.
   return execSync(`npx convex env get CLERK_JWT_ISSUER_DOMAIN --env-file ${envFileName}`, {
     encoding: 'utf8',
-    cwd: webRoot,
+    cwd: convexRoot,
     stdio: ['pipe', 'pipe', 'pipe'],
   }).trim();
 }
 
 const surveyRoot = process.cwd();
-const webRoot = path.join(surveyRoot, '..', 'sdv-front-new-app');
+const webRoot = path.join(surveyRoot, '..', 'sdv-monorepo-apps', 'apps', 'web');
+const backendRoot = path.join(surveyRoot, '..', 'sdv-monorepo-apps', 'packages', 'backend');
 const webProdEnvPath = path.join(webRoot, '.env.production');
 const fleetEnvPath = isProd
   ? path.join(surveyRoot, '.env.prod')
@@ -69,7 +70,7 @@ const webIssuer = webEnv.CLERK_JWT_ISSUER_DOMAIN ?? null;
 const webEnvLabel = isProd ? '.env.production' : '.env.local';
 
 if (isProd && !existsSync(webProdEnvPath)) {
-  fail('sdv-front-new-app/.env.production missing');
+  fail('sdv-monorepo-apps/apps/web/.env.production missing');
 }
 
 if (isProd && mobilePk?.startsWith('pk_test_')) {
@@ -100,16 +101,16 @@ try {
 let convexIssuer = null;
 if (isProd) {
   try {
-    convexIssuer = readConvexIssuer(webRoot, true);
+    convexIssuer = readConvexIssuer(backendRoot, true);
   } catch (err) {
     fail(
       `Could not read Convex CLERK_JWT_ISSUER_DOMAIN: ${err instanceof Error ? err.message : err}\n` +
-      `  cd ../sdv-front-new-app && npm run sync:clerk:prod`,
+      `  cd ../sdv-monorepo-apps/packages/backend && npx convex env set CLERK_JWT_ISSUER_DOMAIN …`,
     );
   }
 } else {
   try {
-    convexIssuer = readConvexIssuer(webRoot, false);
+    convexIssuer = readConvexIssuer(backendRoot, false);
   } catch {
     console.warn(
       '[verify-clerk-convex] Skipping Convex issuer check (no CONVEX_DEPLOYMENT / self-hosted env for dev)',
@@ -123,7 +124,7 @@ const targetIssuer = targetPk ? clerkIssuerFromPublishableKey(targetPk) : null;
 if (targetIssuer && convexIssuer && targetIssuer !== convexIssuer) {
   fail(
     `Convex issuer (${convexIssuer}) does not match ${isProd ? 'fleet' : 'EAS'} Clerk (${targetIssuer}).\n` +
-    `  cd ../sdv-front-new-app && npm run sync:clerk:prod`,
+    `  cd ../sdv-monorepo-apps/packages/backend && npx convex env set CLERK_JWT_ISSUER_DOMAIN …`,
   );
 } else if (targetIssuer && convexIssuer) {
   ok(`Convex issuer matches ${isProd ? 'production' : 'EAS'} Clerk (${convexIssuer})`);
@@ -161,7 +162,7 @@ if (!isProd && webPk && mobilePk) {
       `Web app uses a different Clerk instance than mobile/EAS.\n` +
       `  Web: ${webIssuerFromPk ?? webPk.slice(0, 20)}…\n` +
       `  Mobile/EAS: ${easIssuer ?? 'invalid'}\n` +
-      `  Update sdv-front-new-app/.env.local to match survey-app dev keys.`,
+      `  Update sdv-monorepo-apps/apps/web/.env.local to match survey-app dev keys.`,
     );
   } else {
     ok('Web .env.local uses the same Clerk app as mobile/EAS');
@@ -169,7 +170,7 @@ if (!isProd && webPk && mobilePk) {
 } else if (!isProd && webPk && easPk === null) {
   ok('Web .env.local present (EAS not checked)');
 } else if (!isProd && !webPk) {
-  fail('sdv-front-new-app/.env.local missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
+  fail('sdv-monorepo-apps/apps/web/.env.local missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
 }
 
 if (isProd && webIssuer && mobileIssuer && webIssuer !== mobileIssuer) {

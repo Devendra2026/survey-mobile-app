@@ -5,16 +5,6 @@ export default {
     overrides: [
       {
         files: [
-          "convex/**",
-          "convex/_generated/**"
-        ],
-        rules: [
-          "deslop/unused-file",
-          "deslop/unused-export"
-        ]
-      },
-      {
-        files: [
           "scripts/**"
         ],
         rules: [

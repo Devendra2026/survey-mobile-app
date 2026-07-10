@@ -16,7 +16,7 @@
     "doctor": "react-doctor",
     "expo-doctor": "expo-doctor",
     "typecheck": "tsc --noEmit",
-    "typecheck:convex": "tsc --noEmit -p convex/tsconfig.json",
+    "typecheck:convex": "tsc --noEmit -p ../sdv-monorepo-apps/packages/backend/convex/tsconfig.json",
     "check": "npm run lint && npm run typecheck && npm run typecheck:convex && npm run doctor",
     "generate:logo": "node scripts/generate-logo-assets.mjs",
     "lockfile:eas": "node ./scripts/lockfile-eas.mjs",

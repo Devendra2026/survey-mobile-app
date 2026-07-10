@@ -21,7 +21,7 @@ import {
 } from '@/components/survey/survey-detail-sections';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { validateGpsCapture } from '@/convex/lib/gpsValidation';
+import { validateGpsCapture } from '@/lib/gpsValidation';
 import { useConvexReadyQuery } from '@/hooks/use-convex-ready-query';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { clearDraft, surveyToDraft } from '@/hooks/useWizardDraft';
@@ -42,10 +42,10 @@ export default function SurveyDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = params.id as Id<'surveys'> | undefined;
   const { user: me, role, capabilities, isLoading: meLoading } = useCurrentUser();
-  const survey = useConvexReadyQuery(api.survey.get, id ? { id } : 'skip');
-  const masters = useConvexReadyQuery(api.masters.bundle, { includeWards: false, includeTenantCatalog: true });
-  const submit = useMutation(api.survey.submit);
-  const decide = useMutation(api.qc.decide);
+  const survey = useConvexReadyQuery(api.surveys.queries.get, id ? { id } : 'skip');
+  const masters = useConvexReadyQuery(api.masters.queries.bundle, { includeWards: false, includeTenantCatalog: true });
+  const submit = useMutation(api.surveys.mutations.submit);
+  const decide = useMutation(api.qc.mutations.decide);
   const [toast, setToast] = useState<{ title: string; tone: 'success' | 'danger' } | null>(null);
   const [busy, setBusy] = useState(false);
   const hideToast = useCallback(() => setToast(null), []);

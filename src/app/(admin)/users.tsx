@@ -25,7 +25,11 @@ export default function AdminUsersScreen() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const paginated = usePaginatedQuery(api.admin.listUsers, { role: role ?? undefined }, { initialNumItems: PAGE_SIZE });
+  const paginated = usePaginatedQuery(
+    api.admin.queries.listUsers as Parameters<typeof usePaginatedQuery>[0],
+    { role: role ?? undefined },
+    { initialNumItems: PAGE_SIZE },
+  );
 
   const users = paginated.results;
   const status = paginated.status;

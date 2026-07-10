@@ -33,7 +33,7 @@ import {
 } from '@/components/wizard';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { validateGpsCapture } from '@/convex/lib/gpsValidation';
+import { validateGpsCapture } from '@/lib/gpsValidation';
 import { useMastersBundle } from '@/hooks/use-masters-bundle';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { useAutoDraftSync } from '@/hooks/useAutoDraftSync';
@@ -64,7 +64,7 @@ export default function ReviewScreen() {
   const bundle = useMastersBundle();
 
   const { save: saveToServer, saving: savingDraft } = useSaveSurveyDraft();
-  const submit = useMutation(api.survey.submit);
+  const submit = useMutation(api.surveys.mutations.submit);
   const { isOnline } = useNetworkStatus();
   const flushPhotosRef = useRef<ReturnType<typeof useWizardPhotoCapture>['flushPhotoQueue'] | null>(null);
 

@@ -36,9 +36,9 @@ function StatTile({
 
 export default function AdminProfileScreen() {
   const router = useRouter();
-  const me = useConvexReadyQuery(api.users.currentUser);
-  const pending = useConvexReadyQuery(api.admin.listPendingApprovals);
-  const activeUsers = useConvexReadyQuery(api.admin.countActiveUsers);
+  const me = useConvexReadyQuery(api.users.queries.currentUser);
+  const pending = useConvexReadyQuery(api.admin.queries.listPendingApprovals);
+  const activeUsers = useConvexReadyQuery(api.admin.queries.countActiveUsers);
   const { signOut } = useAuth();
 
   if (!me) return <Spinner label="Loading profile…" />;

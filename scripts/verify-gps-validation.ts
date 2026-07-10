@@ -3,8 +3,8 @@
  * still blocks mock and stale captures.
  * Run via: npm run verify:gps-validation
  */
-import { GPS_CAPTURE_MAX_AGE_SUBMIT_MS, GPS_DEV_PREVIEW_PROVIDER } from '../convex/gpsAccuracy';
-import { validateGpsCapture } from '../convex/lib/gpsValidation';
+import { GPS_CAPTURE_MAX_AGE_SUBMIT_MS, GPS_DEV_PREVIEW_PROVIDER } from '@/lib/gpsAccuracy';
+import { validateGpsCapture } from '@/lib/gpsValidation';
 
 let failed = false;
 

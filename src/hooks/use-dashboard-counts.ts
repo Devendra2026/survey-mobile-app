@@ -12,5 +12,5 @@ export function useDashboardCounts() {
     if (!convexReady || !Number.isFinite(nowMs)) return 'skip';
     return { nowMs };
   }, [convexReady, nowMs]);
-  return useQuery(api.masters.dashboardCounts, queryArgs);
+  return useQuery(api.masters.queries.dashboardCounts, queryArgs);
 }

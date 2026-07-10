@@ -1,4 +1,4 @@
-import type { GpsCaptureInput } from '@/convex/lib/gpsValidation';
+import type { GpsCaptureInput } from '@/lib/gpsValidation';
 
 /** Full-precision coordinate string for GIS audit (no rounding). */
 export function formatGpsFull(gps: Pick<GpsCaptureInput, 'latitude' | 'longitude'>): string {

@@ -6,8 +6,8 @@ import type { FunctionReturnType } from 'convex/server';
 import { useRef } from 'react';
 import { Text, View } from 'react-native';
 
-type AdminUser = NonNullable<FunctionReturnType<typeof api.admin.getUserForAdmin>>;
-type TenantTree = FunctionReturnType<typeof api.tenants.listForAdmin>;
+type AdminUser = NonNullable<FunctionReturnType<typeof api.admin.queries.getUserForAdmin>>;
+type TenantTree = FunctionReturnType<typeof api.tenants.queries.listForAdmin>;
 
 export type AllotmentDraftRow = {
   id: string;

@@ -48,7 +48,7 @@ function AddressFields({
 }) {
   const masters = useMastersBundle();
   const addressCtx = useQuery(
-    api.addressRules.contextForMunicipality,
+    api.masters.queries.contextForMunicipality,
     draft.municipalityId ? { municipalityId: draft.municipalityId } : 'skip',
   );
 

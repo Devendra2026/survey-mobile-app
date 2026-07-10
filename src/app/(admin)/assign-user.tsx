@@ -44,14 +44,14 @@ export default function AssignUserScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { convexReady } = useClerkConvexAuth();
 
-  const user = useQuery(api.admin.getUserForAdmin, convexReady && userId ? { userId: userId as Id<'users'> } : 'skip');
-  const tree = useQuery(api.tenants.listForAdmin, convexReady ? {} : 'skip');
-  const setAllotments = useMutation(api.allotments.setForUser);
+  const user = useQuery(api.admin.queries.getUserForAdmin, convexReady && userId ? { userId: userId as Id<'users'> } : 'skip');
+  const tree = useQuery(api.tenants.queries.listForAdmin, convexReady ? {} : 'skip');
+  const setAllotments = useMutation(api.allotments.mutations.setForUser);
   const existingAllotments = useQuery(
-    api.allotments.listForUser,
+    api.allotments.queries.listForUser,
     convexReady && userId ? { userId: userId as Id<'users'> } : 'skip',
   );
-  const updateUser = useMutation(api.admin.updateUser);
+  const updateUser = useMutation(api.admin.mutations.updateUser);
 
   const [rows, setRows] = useState<AllotmentDraftRow[]>([]);
   const [submitting, setSubmitting] = useState(false);

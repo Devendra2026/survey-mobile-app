@@ -1,9 +1,8 @@
-/**
+﻿/**
  * Taxation-step canonical dropdown values and idempotent masters seed.
  * Property-use subcategories are keyed by parent `property_use` value.
  */
-import { resolveTaxRateZoneKey } from '../lib/qc/tax-rate-matrix';
-import type { MutationCtx, QueryCtx } from './_generated/server';
+import { resolveTaxRateZoneKey } from "../../lib/qc/tax-rate-matrix";
 
 export type MasterOption = { value: string; label: string };
 
@@ -88,10 +87,10 @@ const ROAD_TYPE_SET = new Set(ROAD_TYPES.map((o) => o.value));
 const TAX_ZONE_SET = new Set(TAX_RATE_ZONES.map((o) => o.value));
 const SITUATION_SET = new Set(SITUATIONS.map((o) => o.value));
 
-/** Retired property uses — still accepted on read for older surveys. */
+/** Retired property uses ΓÇö still accepted on read for older surveys. */
 const LEGACY_PROPERTY_USES = new Set(['agricultural_land']);
 
-/** Retired commercial subcategories — still accepted on read for older surveys. */
+/** Retired commercial subcategories ΓÇö still accepted on read for older surveys. */
 const LEGACY_COMMERCIAL_SUBCATEGORIES = new Set([
   'bank',
   'shop',
@@ -104,7 +103,7 @@ const LEGACY_COMMERCIAL_SUBCATEGORIES = new Set([
   'hotel_restaurant',
 ]);
 
-/** Retired mix subcategories — still accepted on read for older surveys. */
+/** Retired mix subcategories ΓÇö still accepted on read for older surveys. */
 const LEGACY_MIX_SUBCATEGORIES = new Set(['mix_residential', 'mix_commercial']);
 
 const SUBCATEGORY_BY_USE = new Map<string, Set<string>>();
@@ -148,16 +147,6 @@ export function buildAllowedTaxZoneSet(masterValues?: string[], masterLabels?: s
     allowed.add(normalizeTaxRateZone(label));
   }
   return allowed;
-}
-
-export async function loadAllowedTaxZoneSet(ctx: QueryCtx | MutationCtx): Promise<Set<string>> {
-  const rows = await ctx.db
-    .query('masters')
-    .withIndex('by_category_position', (q) => q.eq('category', 'tax_rate_zone').eq('isActive', true))
-    .collect();
-  const dbValues = rows.map((m) => m.value);
-  const dbLabels = rows.map((m) => m.label);
-  return buildAllowedTaxZoneSet(dbValues, dbLabels);
 }
 
 export function normalizeTaxationFields<
@@ -234,119 +223,4 @@ export function validateTaxationSection(
   }
 
   return details;
-}
-
-type SeedRow = MasterOption & { position: number };
-
-/** Admin UI category aliases → stored `masters.category` keys. */
-export const MASTER_CATEGORY_ALIASES: Record<string, string> = {
-  property_type: 'property_use_subcategory',
-};
-
-export function resolveMasterCategory(category: string): string {
-  return MASTER_CATEGORY_ALIASES[category] ?? category;
-}
-
-function flatPropertyUseSubcategoryRows(): SeedRow[] {
-  let subPos = 1;
-  const rows: SeedRow[] = [];
-  for (const opts of Object.values(PROPERTY_USE_SUBCATEGORIES)) {
-    for (const o of opts) {
-      rows.push({ ...o, position: subPos });
-      subPos += 1;
-    }
-  }
-  return rows;
-}
-
-/** Canonical defaults for taxation dropdowns when the DB has no rows yet. */
-export function defaultMasterRowsForCategory(category: string): SeedRow[] {
-  const resolved = resolveMasterCategory(category);
-  switch (resolved) {
-    case 'ownership_type':
-      return OWNERSHIP_TYPES.map((o, i) => ({ ...o, position: i + 1 }));
-    case 'property_use':
-      return PROPERTY_USES.map((o, i) => ({ ...o, position: i + 1 }));
-    case 'property_use_subcategory':
-      return flatPropertyUseSubcategoryRows();
-    case 'road_type':
-      return ROAD_TYPES.map((o, i) => ({ ...o, position: i + 1 }));
-    case 'tax_rate_zone':
-      return TAX_RATE_ZONES.map((o, i) => ({ ...o, position: i + 1 }));
-    case 'situation':
-      return SITUATIONS.map((o, i) => ({ ...o, position: i + 1 }));
-    default:
-      return [];
-  }
-}
-
-async function upsertMasterCategory(ctx: MutationCtx, category: string, rows: SeedRow[]) {
-  await Promise.all(
-    rows.map(async (row) => {
-      const existing = await ctx.db
-        .query('masters')
-        .withIndex('by_category_value', (q) => q.eq('category', category).eq('value', row.value))
-        .unique();
-      if (existing) {
-        await ctx.db.patch(existing._id, { label: row.label, position: row.position, isActive: true });
-      } else {
-        await ctx.db.insert('masters', {
-          category,
-          value: row.value,
-          label: row.label,
-          position: row.position,
-          isActive: true,
-        });
-      }
-    }),
-  );
-}
-
-async function deactivateMasterValues(ctx: MutationCtx, category: string, values: readonly string[]) {
-  await Promise.all(
-    values.map(async (value) => {
-      const row = await ctx.db
-        .query('masters')
-        .withIndex('by_category_value', (q) => q.eq('category', category).eq('value', value))
-        .unique();
-      if (row?.isActive) await ctx.db.patch(row._id, { isActive: false });
-    }),
-  );
-}
-
-/** Idempotent seed for taxation dropdown masters (dev + admin reference data). */
-export async function seedTaxationMasters(ctx: MutationCtx) {
-  await Promise.all([
-    upsertMasterCategory(
-      ctx,
-      'ownership_type',
-      OWNERSHIP_TYPES.map((o, i) => ({ ...o, position: i + 1 })),
-    ),
-    upsertMasterCategory(
-      ctx,
-      'property_use',
-      PROPERTY_USES.map((o, i) => ({ ...o, position: i + 1 })),
-    ),
-    upsertMasterCategory(ctx, 'property_use_subcategory', flatPropertyUseSubcategoryRows()),
-    upsertMasterCategory(
-      ctx,
-      'road_type',
-      ROAD_TYPES.map((o, i) => ({ ...o, position: i + 1 })),
-    ),
-    upsertMasterCategory(
-      ctx,
-      'tax_rate_zone',
-      TAX_RATE_ZONES.map((o, i) => ({ ...o, position: i + 1 })),
-    ),
-    upsertMasterCategory(
-      ctx,
-      'situation',
-      SITUATIONS.map((o, i) => ({ ...o, position: i + 1 })),
-    ),
-    deactivateMasterValues(ctx, 'property_use_subcategory', [
-      ...LEGACY_MIX_SUBCATEGORIES,
-      ...LEGACY_COMMERCIAL_SUBCATEGORIES,
-    ]),
-    deactivateMasterValues(ctx, 'property_use', [...LEGACY_PROPERTY_USES]),
-  ]);
 }

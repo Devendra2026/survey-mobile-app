@@ -83,7 +83,7 @@ export function ReviewPhotosSection({
   );
 
   const urlRows = useQuery(
-    api.photos.resolveStorageUrls,
+    api.photos.queries.resolveStorageUrls,
     serverSurveyId && storageIds.length > 0 ? { storageIds, surveyId: serverSurveyId } : 'skip',
   );
   const urlByStorageId = useMemo(() => {

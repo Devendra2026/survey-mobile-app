@@ -7,13 +7,13 @@ import { AppCard, AppDropdown, AppInput, ChipSelector, SectionLabel, Spinner } f
 import { WizardStepFrame } from '@/components/wizard';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { displayPropertyId } from '@/convex/propertyId';
+import { displayPropertyId } from '@/lib/propertyId';
 import {
   constructedYearError,
   parcelNoError,
   sanitizeFixedDigits,
   unitNoError,
-} from '../../../../convex/surveyFieldValidation';
+} from '@/lib/surveyFieldValidation';
 import { useConvexReadyQuery } from '@/hooks/use-convex-ready-query';
 import { useMastersBundle } from '@/hooks/use-masters-bundle';
 import { stepCompletion, type WizardDraft } from '@/hooks/useWizardDraft';
@@ -60,7 +60,7 @@ function PropertyFields({
   masters: MastersBundle;
 }) {
   const liveWards = useConvexReadyQuery(
-    api.masters.wardsForMunicipality,
+    api.masters.queries.wardsForMunicipality,
     draft.municipalityId ? { municipalityId: draft.municipalityId as Id<'municipalities'> } : 'skip',
   );
 

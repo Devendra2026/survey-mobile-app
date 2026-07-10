@@ -1,7 +1,7 @@
 /**
  * Allowlist mobile OAuth redirect URLs in Clerk (required for Google/Apple SSO in Expo).
  *
- * Requires CLERK_SECRET_KEY from ../sdv-front-new-app/.env.local or env.
+ * Requires CLERK_SECRET_KEY from ../sdv-monorepo-apps/apps/web/.env.local or env.
  *
  * Usage:
  *   node ./scripts/clerk-allowlist-oauth-redirect.mjs
@@ -13,7 +13,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const CLERK_API = 'https://api.clerk.com/v1';
-const WEB_ROOT = path.join(process.cwd(), '..', 'sdv-front-new-app');
+const WEB_ROOT = path.join(process.cwd(), '..', 'sdv-monorepo-apps', 'apps', 'web');
 const MOBILE_ENV = path.join(process.cwd(), '.env.local');
 const PROD_ENV = path.join(process.cwd(), '.env.prod');
 
@@ -135,7 +135,7 @@ async function main() {
   if (!secretKey) {
     if (!failed) {
       fail(
-        'CLERK_SECRET_KEY missing. Set it in .env.local, ../sdv-front-new-app/.env.local, or the environment.',
+        'CLERK_SECRET_KEY missing. Set it in .env.local, ../sdv-monorepo-apps/apps/web/.env.local, or the environment.',
       );
     }
     process.exit(1);
