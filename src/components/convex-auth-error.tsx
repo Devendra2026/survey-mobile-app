@@ -2,7 +2,6 @@ import { AppButton } from '@/components';
 import { authStyles } from '@/components/auth/styles';
 import { env } from '@/config/env';
 import { classifyConvexTokenError, lastConvexTokenError, retryConvexAuth } from '@/hooks/use-auth-for-convex';
-import { useClerkConvexAuth } from '@/hooks/use-clerk-convex-auth';
 import { useAuth } from '@clerk/expo';
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
@@ -11,10 +10,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 /**
  * Shown when Clerk is signed in but Convex cannot validate the JWT.
  * Surveyors on distributed APKs get a retry action; dev details stay in __DEV__.
+ * Do not gate Retry on convexAuthLoading — it can stay true forever (the hang we surface here).
  */
 export function ConvexAuthError() {
   const { signOut } = useAuth();
-  const { convexAuthLoading } = useClerkConvexAuth();
   const [retrying, setRetrying] = useState(false);
 
   const onRetry = async () => {
@@ -42,10 +41,10 @@ export function ConvexAuthError() {
 
         <View style={{ marginTop: 20, gap: 12 }}>
           <AppButton
-            label={retrying || convexAuthLoading ? 'Connecting…' : 'Try again'}
+            label={retrying ? 'Connecting…' : 'Try again'}
             onPress={() => void onRetry()}
-            loading={retrying || convexAuthLoading}
-            disabled={retrying || convexAuthLoading}
+            loading={retrying}
+            disabled={retrying}
             fullWidth
           />
           <AppButton label="Sign out" variant="outline" onPress={() => void signOut()} fullWidth />

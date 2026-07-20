@@ -17,6 +17,11 @@ let convexSessionEstablished = false;
 const RETRY_MS = 800;
 const MAX_ATTEMPTS = 8;
 const REFRESH_BEFORE_EXPIRY_MS = 5 * 60_000;
+/** Per-call timeout for Clerk getToken — prevents hung SecureStore/FAPI from blocking forever. */
+const GET_TOKEN_TIMEOUT_MS = 12_000;
+/** Cap total wall time for the retry loop so Convex auth handshake cannot hang indefinitely. */
+const FETCH_TOKEN_WALL_MS = 28_000;
+const TOKEN_TIMEOUT_MESSAGE = 'Token request timed out. Check your connection and try again.';
 
 let authRefetchEpoch = 0;
 const forceRefreshRef = { current: 0 };
@@ -171,23 +176,59 @@ function sessionUsesConvexIntegration(sessionClaims: Record<string, unknown> | n
   return sessionClaims?.aud === 'convex' || audIncludesConvex(sessionClaims?.aud);
 }
 
+class TokenTimeoutError extends Error {
+  constructor(message = TOKEN_TIMEOUT_MESSAGE) {
+    super(message);
+    this.name = 'TokenTimeoutError';
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message = TOKEN_TIMEOUT_MESSAGE): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new TokenTimeoutError(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+type ClerkGetToken = (opts?: { template?: string; skipCache?: boolean }) => Promise<string | null>;
+
+function timedGetToken(getToken: ClerkGetToken): ClerkGetToken {
+  return (opts) => withTimeout(getToken(opts), GET_TOKEN_TIMEOUT_MS);
+}
+
+function tryCachedConvexToken(): string | null {
+  if (!lastGoodConvexToken || !isTokenValid(lastGoodConvexToken)) return null;
+  const cachedErr = validateConvexJwt(lastGoodConvexToken, true);
+  return cachedErr ? null : lastGoodConvexToken;
+}
+
 async function fetchClerkConvexToken(
-  getToken: (opts?: { template?: string; skipCache?: boolean }) => Promise<string | null>,
+  getToken: ClerkGetToken,
   skipCache: boolean,
   sessionClaims: Record<string, unknown> | null | undefined,
 ): Promise<string | null> {
   const integrated = sessionUsesConvexIntegration(sessionClaims);
+  const get = timedGetToken(getToken);
 
   try {
     if (integrated) {
-      const sessionToken = await getToken({ skipCache });
+      const sessionToken = await get({ skipCache });
       if (sessionToken) {
         const err = validateConvexJwt(sessionToken, true);
         if (!err) return sessionToken;
         lastConvexTokenError = err;
       }
     } else {
-      const templateToken = await getToken({ template: 'convex', skipCache });
+      const templateToken = await get({ template: 'convex', skipCache });
       if (templateToken) {
         const err = validateConvexJwt(templateToken, true);
         if (!err) return templateToken;
@@ -196,11 +237,15 @@ async function fetchClerkConvexToken(
     }
   } catch (err) {
     lastConvexTokenError = formatTokenError(err);
+    if (err instanceof TokenTimeoutError || isClerkOfflineError(err)) {
+      const cached = tryCachedConvexToken();
+      if (cached) return cached;
+    }
   }
 
   if (!integrated) {
     try {
-      const templateToken = await getToken({ template: 'convex', skipCache });
+      const templateToken = await get({ template: 'convex', skipCache });
       if (templateToken) {
         const err = validateConvexJwt(templateToken, true);
         if (!err) return templateToken;
@@ -208,31 +253,56 @@ async function fetchClerkConvexToken(
       }
     } catch (err) {
       lastConvexTokenError = formatTokenError(err);
+      if (err instanceof TokenTimeoutError || isClerkOfflineError(err)) {
+        const cached = tryCachedConvexToken();
+        if (cached) return cached;
+      }
     }
   }
 
-  const sessionToken = await getToken({ skipCache });
-  if (!sessionToken) {
-    lastConvexTokenError = 'Clerk returned no session token. Sign out and sign in again.';
-    return null;
-  }
+  try {
+    const sessionToken = await get({ skipCache });
+    if (!sessionToken) {
+      lastConvexTokenError = 'Clerk returned no session token. Sign out and sign in again.';
+      return null;
+    }
 
-  const err = validateConvexJwt(sessionToken, integrated);
-  if (err) {
-    lastConvexTokenError = err;
+    const err = validateConvexJwt(sessionToken, integrated);
+    if (err) {
+      lastConvexTokenError = err;
+      return null;
+    }
+    return sessionToken;
+  } catch (err) {
+    lastConvexTokenError = formatTokenError(err);
+    if (err instanceof TokenTimeoutError || isClerkOfflineError(err)) {
+      const cached = tryCachedConvexToken();
+      if (cached) return cached;
+    }
     return null;
   }
-  return sessionToken;
 }
-
-type ClerkGetToken = (opts?: { template?: string; skipCache?: boolean }) => Promise<string | null>;
 
 async function fetchConvexTokenWithRetry(
   getToken: ClerkGetToken,
   refresh: boolean,
   claims: Record<string, unknown> | null | undefined,
 ): Promise<string | null> {
+  const deadline = Date.now() + FETCH_TOKEN_WALL_MS;
+
   const attempt = async (attemptNo: number): Promise<string | null> => {
+    if (Date.now() >= deadline) {
+      if (!lastConvexTokenError) {
+        lastConvexTokenError = TOKEN_TIMEOUT_MESSAGE;
+      }
+      const cached = tryCachedConvexToken();
+      if (cached) return cached;
+      if (__DEV__ && lastConvexTokenError) {
+        console.warn('[convex-auth]', lastConvexTokenError);
+      }
+      return null;
+    }
+
     const skipCache = refresh || attemptNo > 1 || !lastGoodConvexToken;
 
     try {
@@ -243,23 +313,35 @@ async function fetchConvexTokenWithRetry(
       }
     } catch (err) {
       lastConvexTokenError = formatTokenError(err);
-      if (isClerkOfflineError(err) && lastGoodConvexToken && isTokenValid(lastGoodConvexToken)) {
+      if (
+        (isClerkOfflineError(err) || err instanceof TokenTimeoutError) &&
+        lastGoodConvexToken &&
+        isTokenValid(lastGoodConvexToken)
+      ) {
         const cachedErr = validateConvexJwt(lastGoodConvexToken, true);
         if (!cachedErr) return lastGoodConvexToken;
       }
     }
 
-    if (attemptNo >= MAX_ATTEMPTS) {
+    if (attemptNo >= MAX_ATTEMPTS || Date.now() >= deadline) {
       if (!lastConvexTokenError) {
         lastConvexTokenError = 'Could not reach the server — check your connection and try again.';
       }
+      const cached = tryCachedConvexToken();
+      if (cached) return cached;
       if (__DEV__ && lastConvexTokenError) {
         console.warn('[convex-auth]', lastConvexTokenError);
       }
       return null;
     }
 
-    await new Promise((r) => setTimeout(r, RETRY_MS * Math.min(attemptNo, 4)));
+    const remaining = deadline - Date.now();
+    const delay = Math.min(RETRY_MS * Math.min(attemptNo, 4), Math.max(0, remaining));
+    if (delay <= 0) {
+      if (!lastConvexTokenError) lastConvexTokenError = TOKEN_TIMEOUT_MESSAGE;
+      return tryCachedConvexToken();
+    }
+    await new Promise((r) => setTimeout(r, delay));
     return attempt(attemptNo + 1);
   };
 
