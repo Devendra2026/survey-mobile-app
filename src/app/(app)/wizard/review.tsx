@@ -33,7 +33,6 @@ import {
 } from '@/components/wizard';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { validateGpsCapture } from '@/lib/gpsValidation';
 import { useMastersBundle } from '@/hooks/use-masters-bundle';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { useAutoDraftSync } from '@/hooks/useAutoDraftSync';
@@ -46,6 +45,7 @@ import {
   useWizardDraft,
 } from '@/hooks/useWizardDraft';
 import type { useWizardPhotoCapture } from '@/hooks/useWizardPhotoCapture';
+import { validateGpsCapture } from '@/lib/gpsValidation';
 import { isTransientNetworkError } from '@/utils/convexMutationRetry';
 import { convexValidationMessages, toUserMessage } from '@/utils/errors';
 import { hasPendingPhotoUploads } from '@/utils/photoUploadQueue';
@@ -68,7 +68,7 @@ export default function ReviewScreen() {
   const { isOnline } = useNetworkStatus();
   const flushPhotosRef = useRef<ReturnType<typeof useWizardPhotoCapture>['flushPhotoQueue'] | null>(null);
 
-  useAutoDraftSync(draft, update);
+  useAutoDraftSync(draft, update, saveToServer);
 
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ title: string; tone: 'success' | 'danger' } | null>(null);

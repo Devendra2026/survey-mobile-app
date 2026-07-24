@@ -27,8 +27,20 @@ export async function saveLocalSurveyPhoto(
   return file.uri;
 }
 
+export function localSurveyPhotoExists(localUri: string): boolean {
+  try {
+    return new File(localUri).exists;
+  } catch {
+    return false;
+  }
+}
+
 export async function readLocalSurveyPhotoBytes(localUri: string): Promise<Uint8Array> {
-  const buffer = await new File(localUri).arrayBuffer();
+  const file = new File(localUri);
+  if (!file.exists) {
+    throw new Error('Local photo file missing — retake the photo');
+  }
+  const buffer = await file.arrayBuffer();
   return new Uint8Array(buffer);
 }
 

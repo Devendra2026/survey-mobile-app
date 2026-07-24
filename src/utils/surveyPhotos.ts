@@ -41,3 +41,31 @@ export function photoPreviewUri(photo: WizardPhotoEntry | undefined): string | u
   if (!photo) return undefined;
   return photo.localUri ?? photo.url;
 }
+
+/** Compare file:// URIs by normalized pathname (slot retakes reuse the same path). */
+export function samePhotoUri(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+
+  const normalize = (uri: string): string => {
+    let path = uri.trim();
+    if (path.startsWith('file://')) {
+      path = path.slice('file://'.length);
+    }
+    try {
+      path = decodeURIComponent(path);
+    } catch {
+      // keep raw path
+    }
+    path = path.replace(/\\/g, '/');
+    while (path.endsWith('/') && path.length > 1) {
+      path = path.slice(0, -1);
+    }
+    return path;
+  };
+
+  return normalize(a) === normalize(b);
+}
+
+export function missingLocalPhotoMessage(slot: SurveyPhotoSlot): string {
+  return `Retake ${SURVEY_PHOTO_SLOT_LABEL[slot]} — the local photo file is missing`;
+}

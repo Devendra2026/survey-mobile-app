@@ -16,7 +16,12 @@ import {
 } from '@/utils/captureSurveyPhoto';
 import { toPhotoErrorMessage } from '@/utils/convex-storage';
 import { withMutationRetry } from '@/utils/convexMutationRetry';
-import { deleteLocalSurveyPhoto, readLocalSurveyPhotoBytes, saveLocalSurveyPhoto } from '@/utils/localPhotoStore';
+import {
+  deleteLocalSurveyPhoto,
+  localSurveyPhotoExists,
+  readLocalSurveyPhotoBytes,
+  saveLocalSurveyPhoto,
+} from '@/utils/localPhotoStore';
 import {
   dequeuePhotoUpload,
   enqueuePhotoUpload,
@@ -29,9 +34,11 @@ import {
 } from '@/utils/photoUploadQueue';
 import {
   filterSurveyPhotos,
+  missingLocalPhotoMessage,
   photoPreviewUri,
   photoSlotCaptured,
   REQUIRED_SURVEY_PHOTO_SLOTS,
+  samePhotoUri,
   SURVEY_PHOTO_SLOT_LABEL,
   type SurveyPhotoSlot,
   type WizardPhotoEntry,
@@ -41,13 +48,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 
 type PickedPhoto = Extract<Awaited<ReturnType<typeof pickSurveyPhotoFromCamera>>, { canceled: false }>;
-
-const LINK_RETRY_ATTEMPTS = 3;
-const LINK_RETRY_BASE_MS = 500;
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export type FlushPhotoQueueResult = {
   stillPending: boolean;
@@ -148,6 +148,7 @@ export function useWizardPhotoCapture({
     return filterSurveyPhotos(surveyPhotosRef.current).find((p) => p.slot === slot);
   }, []);
 
+  /** Single retry layer via withMutationRetry — no nested outer loop. */
   const linkPhotoWithRetry = useCallback(
     async (item: {
       surveyId: Id<'surveys'>;
@@ -158,20 +159,7 @@ export function useWizardPhotoCapture({
       height: number;
       capturedAt: number;
     }) => {
-      let lastError: unknown;
-      for (let attempt = 1; attempt <= LINK_RETRY_ATTEMPTS; attempt += 1) {
-        try {
-          // react-doctor-disable-next-line react-doctor/async-await-in-loop -- intentional retry backoff
-          await withMutationRetry(() => linkPhoto(item));
-          return;
-        } catch (e) {
-          lastError = e;
-          if (attempt < LINK_RETRY_ATTEMPTS) {
-            await delay(LINK_RETRY_BASE_MS * 2 ** (attempt - 1));
-          }
-        }
-      }
-      throw lastError;
+      await withMutationRetry(() => linkPhoto(item));
     },
     [linkPhoto],
   );
@@ -188,11 +176,35 @@ export function useWizardPhotoCapture({
     [generateUploadUrl],
   );
 
+  const clearMissingLocalPhoto = useCallback(
+    async (item: QueuedPhotoUpload) => {
+      await dequeuePhotoUpload(item.localId, item.slot);
+      const existing = photoEntryForSlot(item.slot);
+      if (!existing) return;
+
+      if (existing.storageId) {
+        const { localUri: _, ...rest } = existing;
+        void _;
+        await patchPhotoInDraft(item.slot, { ...rest, slot: item.slot });
+        return;
+      }
+
+      const next = filterSurveyPhotos(surveyPhotosRef.current).filter((p) => p.slot !== item.slot);
+      surveyPhotosRef.current = next;
+      await update({ photos: next });
+    },
+    [patchPhotoInDraft, photoEntryForSlot, update],
+  );
+
   const processQueueItem = useCallback(
     async (item: QueuedPhotoUpload, surveyId: Id<'surveys'>) => {
       let storageId = item.storageId as Id<'_storage'> | undefined;
 
       if (item.stage === 'needs_survey' || item.stage === 'needs_upload') {
+        if (!localSurveyPhotoExists(item.localFilePath)) {
+          await clearMissingLocalPhoto(item);
+          throw new Error(missingLocalPhotoMessage(item.slot));
+        }
         storageId = await uploadLocalPhoto(surveyId, item);
         await updatePhotoUploadQueueEntry(item.localId, item.slot, {
           stage: 'needs_link',
@@ -224,7 +236,7 @@ export function useWizardPhotoCapture({
         photoDraftEntryFromQueue(item, storageId, photoEntryForSlot(item.slot), 'linked'),
       );
     },
-    [linkPhotoWithRetry, patchPhotoInDraft, photoEntryForSlot, uploadLocalPhoto],
+    [clearMissingLocalPhoto, linkPhotoWithRetry, patchPhotoInDraft, photoEntryForSlot, uploadLocalPhoto],
   );
 
   const flushWaiters = useRef<(() => void)[]>([]);
@@ -264,8 +276,10 @@ export function useWizardPhotoCapture({
         const queue = await readPhotoUploadQueue();
         const pending = queue.filter((e) => e.localId === localId);
 
-        if (pending.length > 0) {
-          await Promise.all(pending.map((item) => processQueueItem(item, sid)));
+        // Serialize uploads (concurrency 1) to avoid storage/mutation spikes.
+        for (const item of pending) {
+          // react-doctor-disable-next-line react-doctor/async-await-in-loop -- intentional serial upload
+          await processQueueItem(item, sid);
         }
       } catch (e) {
         return {
@@ -291,17 +305,18 @@ export function useWizardPhotoCapture({
   );
 
   const releasePhoto = useCallback(
-    async (photo: WizardPhotoEntry) => {
+    async (photo: WizardPhotoEntry, opts?: { keepLocalUri?: string }) => {
+      const skipLocalDelete = opts?.keepLocalUri != null && samePhotoUri(photo.localUri, opts.keepLocalUri);
       const isLinkedSurveySlot = serverSurveyId && (photo.slot === 'front' || photo.slot === 'side');
 
       if (isLinkedSurveySlot) {
-        if (photo.localUri) await deleteLocalSurveyPhoto(photo.localUri);
+        if (photo.localUri && !skipLocalDelete) await deleteLocalSurveyPhoto(photo.localUri);
         if (photo.storageId) {
           await removeBySurveySlot({ surveyId: serverSurveyId, slot: photo.slot });
         }
         return;
       }
-      if (photo.localUri) await deleteLocalSurveyPhoto(photo.localUri);
+      if (photo.localUri && !skipLocalDelete) await deleteLocalSurveyPhoto(photo.localUri);
       if (photo.storageId) {
         await releaseStorage({ storageId: photo.storageId });
       }
@@ -315,6 +330,12 @@ export function useWizardPhotoCapture({
       setUploadingSlot(slot);
 
       try {
+        // Release old remote + local BEFORE writing the new slot file. Slot paths are fixed
+        // (`…/{slot}.jpg`); releasing after write deleted the just-saved JPEG (ENOENT on submit).
+        if (existing) {
+          await releasePhoto(existing);
+        }
+
         const sizeKb = Math.max(1, Math.ceil(picked.jpegBytes.byteLength / 1024));
         const localUri = await saveLocalSurveyPhoto(localId, slot, picked.jpegBytes);
         const capturedAt = Date.now();
@@ -328,10 +349,6 @@ export function useWizardPhotoCapture({
           capturedAt,
           uploadStatus: 'pending',
         };
-
-        if (existing) {
-          await releasePhoto(existing);
-        }
 
         await patchPhotoInDraft(slot, entry);
 

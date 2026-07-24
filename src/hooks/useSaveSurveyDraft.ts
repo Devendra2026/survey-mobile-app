@@ -1,6 +1,7 @@
 /**
  * Syncs a local AsyncStorage wizard draft to Convex (`survey.saveDraft`)
- * plus child rows (floors, photos, GPS) when present.
+ * plus child rows (floors) when present. Photo linking is owned by
+ * `useWizardPhotoCapture` / the photo upload queue to avoid duplicate writes.
  */
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -8,7 +9,7 @@ import { draftToSaveDraftPayload, type WizardDraft } from '@/hooks/useWizardDraf
 import { withMutationRetry } from '@/utils/convexMutationRetry';
 import { toUserMessage } from '@/utils/errors';
 import { useConvex, useMutation } from 'convex/react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export type DraftSyncSection = 'header' | 'floors' | 'photos';
 
@@ -34,24 +35,25 @@ function floorReadyForSync(f: NonNullable<WizardDraft['floors']>[number]): boole
 
 const EMPTY_SECTION_ERRORS: SaveDraftResult['sectionErrors'] = {};
 
+/** Shared across all hook instances so review + steps cannot race. */
+const saveInFlightByLocalId = new Map<string, Promise<SaveDraftResult>>();
+
 export function useSaveSurveyDraft() {
   const convex = useConvex();
   const saveDraft = useMutation(api.surveys.mutations.saveDraft);
   const upsertFloor = useMutation(api.floors.mutations.upsert);
   const removeFloor = useMutation(api.floors.mutations.remove);
-  const linkPhoto = useMutation(api.photos.mutations.linkPhoto);
   const [saving, setSaving] = useState(false);
-
-  const saveInFlight = useRef<Promise<SaveDraftResult> | null>(null);
 
   const save = useCallback(
     async (draft: WizardDraft): Promise<SaveDraftResult> => {
-      if (saveInFlight.current) return saveInFlight.current;
+      const existing = saveInFlightByLocalId.get(draft.localId);
+      if (existing) return existing;
 
       const payload = draftToSaveDraftPayload(draft);
       if (!payload) return { surveyId: null, failedSections: [], sectionErrors: EMPTY_SECTION_ERRORS };
 
-      saveInFlight.current = (async () => {
+      const promise = (async (): Promise<SaveDraftResult> => {
         setSaving(true);
         const failedSections: DraftSyncSection[] = [];
         const sectionErrors: Partial<Record<DraftSyncSection, string>> = {};
@@ -102,7 +104,9 @@ export function useSaveSurveyDraft() {
           } else {
             try {
               const keep = new Set(syncedFloorIds);
-              const serverFloors = await withMutationRetry(() => convex.query(api.floors.queries.list, { surveyId: sid }));
+              const serverFloors = await withMutationRetry(() =>
+                convex.query(api.floors.queries.list, { surveyId: sid }),
+              );
               const removalPromises: ReturnType<typeof removeFloor>[] = [];
               for (const row of serverFloors) {
                 if (!keep.has(row.clientFloorId)) {
@@ -123,32 +127,8 @@ export function useSaveSurveyDraft() {
             }
           }
 
-          const linkTasks: Promise<unknown>[] = [];
-          for (const photo of draft.photos ?? []) {
-            if (!photo.storageId) continue;
-            linkTasks.push(
-              withMutationRetry(() =>
-                linkPhoto({
-                  surveyId: sid,
-                  slot: photo.slot,
-                  storageId: photo.storageId!,
-                  sizeKb: photo.sizeKb,
-                  width: photo.width,
-                  height: photo.height,
-                  capturedAt: photo.capturedAt,
-                }),
-              ),
-            );
-          }
-          const photoResults = await Promise.allSettled(linkTasks);
-
-          const photoFailed = photoResults.filter((r) => r.status === 'rejected');
-          if (photoFailed.length > 0) {
-            failedSections.push('photos');
-            sectionErrors.photos = photoFailed
-              .map((r) => toUserMessage((r as PromiseRejectedResult).reason))
-              .join('; ');
-          }
+          // Photos: linking is owned by useWizardPhotoCapture / photo upload queue.
+          // Do not call linkPhoto here — avoids duplicate storage writes and retry storms.
 
           return { surveyId: sid, failedSections, sectionErrors };
         } finally {
@@ -156,13 +136,16 @@ export function useSaveSurveyDraft() {
         }
       })();
 
+      saveInFlightByLocalId.set(draft.localId, promise);
       try {
-        return await saveInFlight.current;
+        return await promise;
       } finally {
-        saveInFlight.current = null;
+        if (saveInFlightByLocalId.get(draft.localId) === promise) {
+          saveInFlightByLocalId.delete(draft.localId);
+        }
       }
     },
-    [convex, saveDraft, upsertFloor, removeFloor, linkPhoto],
+    [convex, saveDraft, upsertFloor, removeFloor],
   );
 
   return { save, saving };
